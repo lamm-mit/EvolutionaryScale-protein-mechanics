@@ -90,6 +90,15 @@ curve), **`per_target.*`** (the best run's 4 per-target R² + each target's best
 (+.csv)** (params vs R², by backbone), plus `results_clean.csv` and `summary.json`. (Outputs are
 git-ignored.)
 
+To **materialize every committed experiment** as a folder (recovering each one's `model.py` snapshot
+from its git commit):
+```bash
+python export_experiments.py              # ledger.jsonl -> experiment_snapshots/
+```
+Writes `experiment_snapshots/experiment_NNN/` (each with `model.py`, `changes.patch`, `metadata.json`,
+`README.md`), a `best_experiment/` copy, `BEST_EXPERIMENT.md`, and `manifest.{tsv,json}`. Snapshots
+rely on the per-run git commits, so run the loop git-ratcheted (see *research.md*).
+
 ## Files
 | file | role |
 |------|------|
@@ -101,6 +110,7 @@ git-ignored.)
 | `run_experiment.py` | fixed harness: train → grouped-val early stop → test R² → ledger/leaderboard |
 | `leaderboard.md` / `ledger.jsonl` | best-so-far / full history |
 | `analyze_results.py` | plots (progress / architecture / params) + tables from `ledger.jsonl` |
+| `export_experiments.py` | materialize each committed experiment into a folder (model.py snapshot + diff) |
 | `journal.md` | agent's running notes (hypotheses + negative results) |
 | `baselines/` | drop-in architectures (attention, conv) + a self-contained LoRA script |
 
