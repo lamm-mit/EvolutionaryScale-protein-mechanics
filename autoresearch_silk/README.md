@@ -30,6 +30,56 @@ tail: `python run_experiment.py --tag x > run.log 2>&1 &` then `tail -f run.log`
 Then hand the folder to a coding agent with the brief in **`program.md`** and let it loop. Or iterate
 by hand: edit `model.py` → `python run_experiment.py` → check `leaderboard.md`.
 
+## Full run-through (manual setup → autonomous Codex loop)
+The entire sequence, start to finish. Steps 0–4 you do **once, by hand** (so the env, HF auth and the
+cache are known-good before the agent takes over); steps 5–8 launch the autonomous loop.
+
+```bash
+# 0. PREREQS — the ESM env + HuggingFace auth (silkome is private). Do this in the shell you'll
+#    launch the agent from, so the agent inherits both.
+conda activate esm
+huggingface-cli login                    # paste a token with read access to lamm-mit/silkome-*
+
+# 1. (optional) Two clones: agent experiments in RUN, you make infra fixes in EDIT. See below.
+git clone https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics.git ESM-run
+cd ESM-run/autoresearch_silk
+
+# 2. ONE-TIME cache: download silkome + cache ESMC-300M embeddings (writes data/ + cache/, gitignored).
+python setup.py --smoke-test             # ~30 s pipeline sanity check, no cache written
+python setup.py                          # the real cache (downloads the private dataset)
+
+# 3. Put the agent on its own branch so its commit history is isolated.
+git checkout -b autoresearch/$(date +%b%d)-silk      # e.g. autoresearch/may29-silk
+
+# 4. BASELINE: train the starting model.py (MeanPoolMLP) to set the bar to beat.
+python run_experiment.py --tag baseline  # prints SCALAR mean test R²; writes ledger.jsonl + leaderboard.md
+
+# 5. PER-EXPERIMENT LIMITS (optional but recommended): export once so EVERY run the agent fires
+#    inherits them. AR_TIME_BUDGET = wall-clock seconds per run (checked between epochs; 0 = no cap).
+export AR_TIME_BUDGET=300                 # 5-min ceiling on each experiment
+export AR_EPOCHS=60                       # (optional) also cap epochs per run; overrides config.json
+# export AR_MAX_TRAIN=256                 # (optional) train on first N rows only — quick smoke runs
+
+# 6. LAUNCH the agent in full-auto mode (bypasses approvals + sandbox: it needs to run python, make
+#    git commits/tags, and reach the network).
+codex --yolo                              # (Claude Code: `claude` then accept auto-run, or use a RUN clone)
+
+# 7. PASTE the kickoff prompt below (the "Kick off the agent" block) into the agent and let it loop.
+
+# 8. MONITOR from another shell (same folder):
+tail -f run.log 2>/dev/null               # if you background a run: python run_experiment.py ... > run.log 2>&1 &
+cat leaderboard.md                        # current best-so-far
+tail -f journal.md                        # the agent's running notes / negative results
+```
+
+When you want to stop the loop, tell the agent to stop (it's instructed to run "indefinitely"
+otherwise). Then harvest results — see **Results & figures** below (`analyze_results.py`,
+`export_experiments.py`).
+
+> The agent's prompt (next section) *also* contains steps 0/2/3/4, so if you'd rather not pre-run them
+> by hand you can just launch `codex --yolo` and paste — but doing setup yourself first means an
+> interactive `huggingface-cli login` (which `--yolo` can't answer) is already handled.
+
 ## Kick off the agent (Claude Code / Codex)
 
 Open a coding-agent session **with this folder as the working directory** and paste this prompt:
@@ -64,6 +114,10 @@ THEN loop, indefinitely (git-ratcheted; COMMIT BEFORE RUNNING):
        git add -A && git commit -m "reject exp NNN: <idea> R²=<v>".
   6. Repeat. One change per run. No test peeking beyond that scalar; prefer changes that also lift
      grouped-val R² (memorizing the small test set is not progress). Never stop unless asked.
+
+NOTE: runs may be time-limited via the AR_TIME_BUDGET env var (seconds/run, checked between epochs);
+if a run stops with `stop: time-budget` that is expected, not a crash — it still scores the best
+checkpoint. AR_EPOCHS / AR_MAX_TRAIN similarly cap epochs / training rows. Keep each run fast.
 
 CONTEXT: this is genuinely hard — simple baselines (mean-pool / Ridge / RF / silk-type-mean) tend to
 sit near R² ≈ 0 ("predict the mean"); run the baseline first to establish the actual bar. Any clearly
