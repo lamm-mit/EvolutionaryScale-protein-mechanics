@@ -77,6 +77,19 @@ deterministic so results are comparable.) See `research.md` → "Git workflow".
 To run a *stronger backbone* mid-search, the agent edits `config.json` (`esmc_model`) and re-runs
 `python setup.py --model <hf_id> --device cuda`.
 
+## Results & figures
+
+After some experiments have been logged, render publication-ready plots (à la
+`explore-and-discover`):
+```bash
+python analyze_results.py        # reads ledger.jsonl -> analysis_results/
+```
+Writes `analysis_results/`: **`progress.{png,svg,pdf}`** (per-run R² + the running-best ratchet
+curve), **`per_target.*`** (the best run's 4 per-target R² + each target's best over time),
+**`architecture_summary.*` (+.csv)** (best R² per architecture), **`parameter_vs_performance.*`
+(+.csv)** (params vs R², by backbone), plus `results_clean.csv` and `summary.json`. (Outputs are
+git-ignored.)
+
 ## Files
 | file | role |
 |------|------|
@@ -87,6 +100,7 @@ To run a *stronger backbone* mid-search, the agent edits `config.json` (`esmc_mo
 | `dataio.py` | fixed data/metric plumbing (target scaler, grouped split, R²) — don't edit |
 | `run_experiment.py` | fixed harness: train → grouped-val early stop → test R² → ledger/leaderboard |
 | `leaderboard.md` / `ledger.jsonl` | best-so-far / full history |
+| `analyze_results.py` | plots (progress / architecture / params) + tables from `ledger.jsonl` |
 | `journal.md` | agent's running notes (hypotheses + negative results) |
 | `baselines/` | drop-in architectures (attention, conv) + a self-contained LoRA script |
 

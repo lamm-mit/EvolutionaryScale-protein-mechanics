@@ -8,7 +8,7 @@ prints the SCALAR the agent optimizes: mean test R² over [toughness, E, strengt
   python run_experiment.py            # uses config.json + model.py
   python run_experiment.py --tag "attention pooling v2"
 """
-import argparse, json, os, time, datetime
+import argparse, json, os, time, datetime, subprocess
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 import numpy as np, torch
 
@@ -107,9 +107,15 @@ def main():
                                                         scaler, cfg.get("batch_size", 32), device))
 
     desc = getattr(model_module, "DESCRIPTION", model_module.build_model.__module__)
+    try:
+        commit = subprocess.check_output(["git", "-C", HERE, "rev-parse", "--short", "HEAD"],
+                                         stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        commit = ""
     entry = {
         "time": datetime.datetime.now().isoformat(timespec="seconds"),
-        "tag": args.tag, "model": desc, "backbone": cfg["esmc_model"], "params": int(n_params),
+        "tag": args.tag, "commit": commit, "model": desc, "backbone": cfg["esmc_model"],
+        "params": int(n_params),
         "val_r2_mean": round(float(best_val), 4), "test_r2_mean": round(float(test_mean), 4),
         "test_r2": {k: round(v, 4) for k, v in test_per.items()},
         "cfg": {k: cfg[k] for k in ("lr", "epochs", "batch_size", "weight_decay") if k in cfg},

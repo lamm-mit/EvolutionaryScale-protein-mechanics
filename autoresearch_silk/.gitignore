@@ -6,3 +6,8 @@ __pycache__/
 *.py[cod]
 *.log
 .DS_Store
+
+# generated analysis artifacts
+analysis_results/
+.cache/
+experiment_snapshots/
