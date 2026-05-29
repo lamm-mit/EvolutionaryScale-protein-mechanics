@@ -1,0 +1,17 @@
+{
+  "esmc_model": "biohub/ESMC-300M",
+  "_comment_model": "Switch backbone here, then re-run: python setup.py --model <hf_id> [--device cuda]. Caches are per-model, so 300M/600M/6B can coexist.",
+
+  "seed": 0,
+  "val_frac": 0.15,
+  "group_split": true,
+
+  "batch_size": 32,
+  "epochs": 200,
+  "patience": 20,
+  "lr": 0.0005,
+  "weight_decay": 0.0001,
+  "grad_clip": 1.0,
+
+  "_note": "These knobs are free for the autoresearch agent to tune. Architecture lives in model.py."
+}

@@ -326,7 +326,39 @@ same ESMC model recorded in `meta.json`.
 
 ---
 
-## 7 · Repository layout
+## 7 · Autoresearch — discovering architectures for silk-mechanics prediction
+
+[`autoresearch_silk/`](autoresearch_silk/) is a self-contained, [Karpathy-style **autoresearch**
+loop](https://www.verdent.ai/guides/what-is-autoresearch-karpathy): point a coding agent at the folder
+and it iterates — *propose an architecture change → run a short training job → measure mean test R² →
+keep it if it improved, else roll back* — to learn to predict silk fiber mechanics
+(**toughness, E, strength, strain**) **directly from sequence** with ESMC.
+
+**Why a search?** Using [`lamm-mit/silkome-full`](https://huggingface.co/datasets/lamm-mit/silkome-full)
+(3197 train / 357 test, all four targets), this is a genuinely hard problem: ~3170 distinct sequences
+map to only ~268 fiber measurements, so the single-sequence→mechanics signal is weak. We measured the
+floor honestly — **mean-pool ESMC-300M baselines and classical models (Ridge/RandomForest/silk-type
+mean) all sit at R² ≈ 0 or below**, even though 173/175 test property-tuples also appear in train. So
+*any clearly positive, repeatable R² is a real result*, and the loop is pointed at the promising levers
+(**LoRA fine-tuning**, **bigger backbone 600M/6B**, **per-residue sequence models**, target reframing).
+
+**How it works**
+```bash
+conda activate esm                       # needs `huggingface-cli login` (silkome is private)
+cd autoresearch_silk
+python setup.py                          # ONE-TIME: cache ESMC embeddings (--model/--device configurable)
+python run_experiment.py --tag baseline  # train model.py → print mean test R² → update leaderboard.md
+```
+The **editable asset** is `model.py` (architecture mapping residue embeddings → 4 targets); the agent
+edits it (+ `config.json`), reruns the fixed `run_experiment.py`, and ratchets on `leaderboard.md`. Its
+brief is in **`autoresearch_silk/research.md`**. The backbone is a one-line `config.json` switch
+(`esmc_model`) + re-run `setup.py --model … --device cuda` — handy for a GPU box / DGX Spark.
+
+> **Private data:** silkome is private, so `autoresearch_silk/data/` and `cache/` are git-ignored and
+> **not** committed; re-run `setup.py` (with HF auth) to repopulate. Only code + the research
+> brief/ledger/leaderboard are tracked.
+
+## 8 · Repository layout
 
 ```
 EvolutionaryScale-protein-mechanics/      # (local working folder: ESM_samples/)
@@ -339,6 +371,9 @@ EvolutionaryScale-protein-mechanics/      # (local working folder: ESM_samples/)
 │   ├── esm_fold.py  esm_embed.py  esm_mutscan.py  esm_sae.py
 │   ├── make_dataset.py  esm_train_head.py  esm_predict.py
 ├── data/                                  # built dataset CSV (structural_protein_families.csv)
+├── autoresearch_silk/                     # self-contained Karpathy-style autoresearch loop
+│   ├── research.md  model.py  config.json  setup.py  dataio.py  run_experiment.py
+│   ├── baselines/   leaderboard.md  journal.md          # (data/ & cache/ are git-ignored: private)
 ├── results/                               # Notebook 1 figures (PNG + SVG)
 ├── results_sae/                           # Notebook 2 figures (PNG + SVG)
 ├── SKILL.md                               # agent-readable description of the CLI toolkit
@@ -350,7 +385,7 @@ EvolutionaryScale-protein-mechanics/      # (local working folder: ESM_samples/)
 
 ---
 
-## 8 · Caveats and Notes
+## 9 · Caveats and Notes
 
 - pLMs/SAE outputs are **in-silico hypotheses**, not wet-lab annotations; SAE feature descriptions are
   auto-generated and can be wrong, especially for rare biology.
@@ -358,7 +393,7 @@ EvolutionaryScale-protein-mechanics/      # (local working folder: ESM_samples/)
 - The transfer-learning demo uses *stratified* CV; for a stricter test, split by source protein before
   windowing (group-aware CV) so windows from one protein don't straddle train/test.
 
-## 9 · References
+## 10 · References
 
 - ESMC / ESMFold2 model cards: <https://huggingface.co/biohub/ESMC-6B>, <https://huggingface.co/biohub/ESMFold2>
 - ESMC SAE cards & ESM Atlas (feature descriptions): <https://huggingface.co/biohub>
