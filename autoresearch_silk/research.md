@@ -7,15 +7,21 @@ mechanical properties of silk fibers **directly from the protein sequence**:
 
 This follows Karpathy's *autoresearch* loop: **propose → run → measure → ratchet**.
 
-## The loop (repeat indefinitely)
+## The loop (repeat indefinitely) — git-ratcheted
+The best `model.py` is always **git HEAD**. Each accepted improvement is one commit; rejected ones are
+discarded with `git restore`. (Work in a dedicated **RUN clone** — see "Git workflow" below.)
 1. **Read** `model.py` (the architecture) and `leaderboard.md` / `journal.md` (what's been tried).
 2. **Form a hypothesis** for a change likely to raise mean test R².
 3. **Edit `model.py`** (and/or add keys to `config.json`). Keep the contract in `model.py`'s header.
-4. **Run** `python run_experiment.py --tag "<short idea>"`. It prints `SCALAR  mean test R² = …`.
-5. **Ratchet:** if the scalar improved over the best in `leaderboard.md`, keep the change and append a
-   note to `journal.md` (what you tried + result + why you think it helped). If it did **not** improve,
-   revert `model.py` and record the negative result in `journal.md` (negative results are valuable —
-   don't repeat them).
+4. **Run** `python run_experiment.py --tag "<short idea>"`. It prints `SCALAR  mean test R² = …`
+   and appends to `ledger.jsonl` / `leaderboard.md`.
+5. **Ratchet with git:**
+   - **Improved** over the best in `leaderboard.md` → keep it: add a note to `journal.md`, then
+     `git add -A && git commit -m "exp: <idea> | mean test R²=<value>"`.
+   - **Did not improve** → discard the code change but keep the lesson:
+     `git restore model.py config.json` (revert to the last good architecture), append the
+     **negative** result to `journal.md`, and `git commit -m "rejected: <idea> (R²=<value>)"` (journal +
+     ledger only). Negative results are valuable — don't repeat them.
 6. Go to 1.
 
 ## Rules
@@ -26,6 +32,22 @@ This follows Karpathy's *autoresearch* loop: **propose → run → measure → r
 - Keep each run reasonably fast (aim ≤ a few minutes) so you can iterate a lot. If an idea needs the
   backbone fine-tuned, see `baselines/lora_finetune.py` (slower, separate path).
 - One change per run when possible, so you know what moved the metric.
+
+## Git workflow (two clones: RUN vs EDIT)
+Keep reusable infrastructure changes separate from optimization experiments by using two local clones:
+
+```bash
+# EDIT clone — change reusable code (dataio.py, run_experiment.py, baselines, docs) and push
+git clone https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics.git ESM-edit
+# RUN clone — the agent experiments here; per-experiment commits accumulate
+git clone https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics.git ESM-run
+```
+- The **agent runs in the RUN clone** (`ESM-run/autoresearch_silk/`) and git-commits each experiment
+  there (model.py + ledger/leaderboard/journal), as in the loop above.
+- Reusable fixes (harness, new baselines, docs) are made in the **EDIT clone**, pushed, then
+  `git pull`ed into RUN — so infra changes don't get tangled with experiment history.
+- `data/` and `cache/` are git-ignored, so each clone runs `python setup.py` once (needs HF auth).
+  The metric/splits are deterministic, so results stay comparable across clones.
 
 ## How the data/harness works
 - `setup.py` cached **ESMC per-residue embeddings** for every sequence (so experiments are fast). Your

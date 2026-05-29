@@ -49,8 +49,10 @@ THEN loop, indefinitely:
      Do NOT modify dataio.py, run_experiment.py, data/, or cache/.
   3. Run:  python run_experiment.py --tag "<short idea>"   and read the printed
      `SCALAR  mean test R²`.
-  4. RATCHET: if it beat the top of leaderboard.md, keep the change and append a note to
-     journal.md (hypothesis + result + why). If not, revert model.py and log the negative result.
+  4. RATCHET WITH GIT (best model.py = git HEAD): if it beat the top of leaderboard.md, note it in
+     journal.md and `git add -A && git commit -m "exp: <idea> | mean test R²=<value>"`. If it did NOT
+     improve, `git restore model.py config.json` (revert to the last good architecture), append the
+     negative result to journal.md, and `git commit -m "rejected: <idea>"` (journal/ledger only).
   5. Repeat. One change per run. No test peeking beyond that scalar; prefer changes that also
      lift the grouped-val R² (memorizing the small test set is not progress).
 
@@ -61,6 +63,16 @@ pooling/conv/transformer, taxonomy fusion via the AUX hook, sequence-pattern fea
 multi-task, LoRA fine-tuning in baselines/, or a stronger backbone via config.json) — or invent your
 own. Keep iterating; when you stop, report the best architecture and its mean test R².
 ```
+
+**Two clones (RUN vs EDIT).** Keep optimization experiments separate from reusable-code changes by
+cloning the repo twice — the agent experiments and commits per-run in the RUN clone, while infra fixes
+are made in the EDIT clone and pulled in:
+```bash
+git clone https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics.git ESM-edit   # edit infra, push
+git clone https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics.git ESM-run    # agent runs/commits here
+```
+(`data/` and `cache/` are git-ignored, so run `python setup.py` once per clone; the splits/metric are
+deterministic so results are comparable.) See `research.md` → "Git workflow".
 
 To run a *stronger backbone* mid-search, the agent edits `config.json` (`esmc_model`) and re-runs
 `python setup.py --model <hf_id> --device cuda`.
