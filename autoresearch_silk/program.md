@@ -19,9 +19,7 @@ git commit -am "baseline" 2>/dev/null; python run_experiment.py --tag baseline  
 ## The loop (repeat indefinitely) — git-ratcheted
 **Commit the edit BEFORE running** so the commit hash run_experiment.py records points at *this*
 experiment's code (this is what lets `export_experiments.py` / `analyze_results.py` recover it).
-This is **enforced**: `run_experiment.py` refuses to run while `model.py`/`config.json` have
-uncommitted changes (override with `AR_ALLOW_DIRTY=1`, which flags the row `dirty=true` and is not
-git-reproducible). Every experiment is committed and **tagged**, so even rejected code stays recoverable.
+Every experiment is committed and **tagged**, so even rejected code stays recoverable.
 1. **Read** `model.py` and `leaderboard.md` / `journal.md` (what's been tried — don't repeat dead ends).
 2. **Form one hypothesis** likely to raise mean test R².
 3. **Edit `model.py`** (and/or `config.json`). Keep the contract in `model.py`'s header.

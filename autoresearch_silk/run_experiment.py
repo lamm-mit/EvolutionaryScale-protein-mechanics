@@ -12,8 +12,6 @@ Env overrides (handy for smoke tests / bounding long runs; do NOT use for compar
   AR_EPOCHS=5         cap training epochs
   AR_MAX_TRAIN=256    use only the first N training rows
   AR_TIME_BUDGET=120  stop training after N seconds of wall-clock (post-warmup)
-  AR_ALLOW_DIRTY=1    allow logging with uncommitted model.py/config.json (flagged dirty=true;
-                      by default the run REFUSES so the logged commit always matches the code)
 """
 import argparse, json, os, time, datetime, subprocess
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
@@ -76,35 +74,16 @@ def main():
     time_budget = float(os.environ.get("AR_TIME_BUDGET", "0") or 0)     # seconds; 0 = no cap
     max_train = int(os.environ.get("AR_MAX_TRAIN", "0") or 0)           # 0 = all rows
 
-    # The logged commit MUST reflect the code being run (so analyze/export can recover it). Validate
-    # before doing any work: refuse if the editable files (model.py/config.json) are uncommitted, so
-    # the recorded hash can't silently point at the parent. Override with AR_ALLOW_DIRTY=1 (e.g. for
-    # smoke tests); such runs are flagged "dirty": true in the ledger.
-    def _git(*a):
-        try:
-            return subprocess.check_output(["git", "-C", HERE, *a],
-                                           stderr=subprocess.DEVNULL).decode().strip()
-        except Exception:
-            return None
-    in_repo = _git("rev-parse", "--is-inside-work-tree") == "true"
-    commit = (_git("rev-parse", "--short", "HEAD") or "") if in_repo else ""
-    dirty = bool(_git("status", "--porcelain", "--", "model.py", "config.json")) if in_repo else False
-    allow_dirty = os.environ.get("AR_ALLOW_DIRTY", "") not in ("", "0", "false", "False")
-    if in_repo and dirty and not allow_dirty:
-        raise SystemExit(
-            "[run] REFUSING: model.py/config.json have uncommitted changes, so the logged commit "
-            f"({commit}) would not match this run. Commit first:\n"
-            "    git add model.py config.json && git commit -m \"exp NNN: <idea>\"\n"
-            "(or set AR_ALLOW_DIRTY=1 to override; that run is flagged dirty=true and is NOT "
-            "reproducible from git).")
-    if not in_repo:
-        print("[run] note: not a git repository — commit hash unavailable (snapshots won't be "
-              "recoverable).", flush=True)
-    elif dirty:
-        print("[run] WARNING: AR_ALLOW_DIRTY set with uncommitted edits — logging dirty=true; the "
-              "commit hash points at the PARENT, not this code.", flush=True)
+    # Record the current commit so analyze/export can recover the code. As in the original
+    # autoresearch, this assumes the agent has committed the edit BEFORE running (see program.md);
+    # it is not validated here.
+    try:
+        commit = subprocess.check_output(["git", "-C", HERE, "rev-parse", "--short", "HEAD"],
+                                         stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        commit = ""
     base = {"time": datetime.datetime.now().isoformat(timespec="seconds"), "tag": args.tag,
-            "commit": commit, "dirty": dirty, "backbone": cfg["esmc_model"]}
+            "commit": commit, "backbone": cfg["esmc_model"]}
 
     try:
         train, test = SilkData("train"), SilkData("test")
