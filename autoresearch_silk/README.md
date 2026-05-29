@@ -18,8 +18,11 @@ ideas and **ratchet** on a fixed metric. (Dataset is a `config.json` switch — 
 ```bash
 conda activate esm                       # the ESM env (see ../SKILL.md); needs `huggingface-cli login`
 python setup.py                          # ONE-TIME: download silkome + cache ESMC-300M embeddings
-python run_experiment.py --tag baseline  # train model.py, print mean test R², update leaderboard
+python run_experiment.py --tag baseline  # the harness: train the model.py architecture → mean test R²
 ```
+`run_experiment.py` is the fixed training/eval harness the loop runs on **every** experiment — it
+trains whatever is in `model.py`, computes the metric, and logs it. `--tag baseline` just labels this
+first run, which trains the starting architecture (`model.py`'s `MeanPoolMLP`) to set the bar to beat.
 Each run prints a **per-epoch `val R²`** progress line and a final `SCALAR  mean test R²`, appends a
 row to **`ledger.jsonl`**, and updates **`leaderboard.md`**. To peek at a long run, background it and
 tail: `python run_experiment.py --tag x > run.log 2>&1 &` then `tail -f run.log`.
