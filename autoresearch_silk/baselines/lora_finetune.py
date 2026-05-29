@@ -71,14 +71,27 @@ def main():
     def predict(df, idx, y):
         net.eval(); out = []
         for enc, _ in batches(df, idx, y, False):
-            out.append(net(**enc).logits.float().cpu().numpy())
+            if dev == "cuda":
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                    logits = net(**enc).logits
+            else:
+                logits = net(**enc).logits
+            out.append(logits.float().cpu().numpy())
         return scaler.inverse(np.concatenate(out))
 
+    use_amp = (dev == "cuda")           # bf16 autocast on GPU: ~2x faster, half the memory
+    amp = (lambda: torch.autocast(device_type="cuda", dtype=torch.bfloat16)) if use_amp else None
     best, best_state = -1e9, None
     for ep in range(args.epochs):
         net.train(); tot = 0.0
         for enc, yb in batches(tr, tri, ytr, True):
-            opt.zero_grad(); out = net(**enc, labels=yb); out.loss.backward(); opt.step()
+            opt.zero_grad()
+            if use_amp:
+                with amp():
+                    out = net(**enc, labels=yb)
+            else:
+                out = net(**enc, labels=yb)
+            out.loss.backward(); opt.step()
             tot += out.loss.item()
         _, vmean = r2_per_target(ytr[vli], predict(tr, vli, ytr))
         print(f"epoch {ep+1}/{args.epochs} loss={tot:.2f} val_R2={vmean:.4f}", flush=True)
