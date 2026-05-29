@@ -23,6 +23,44 @@ python run_experiment.py --tag baseline  # train model.py, print mean test R², 
 Then hand the folder to a coding agent with the brief in **`research.md`** and let it loop. Or iterate
 by hand: edit `model.py` → `python run_experiment.py` → check `leaderboard.md`.
 
+## Kick off the agent (Claude Code / Codex)
+
+Open a coding-agent session **with this folder as the working directory** and paste this prompt:
+
+```text
+You are an autonomous ML research agent; this folder is your entire workspace.
+
+GOAL: maximize the mean test R² for predicting four silk-fiber mechanical properties
+(toughness, E, strength, strain) directly from protein sequence, using cached ESMC embeddings.
+
+FIRST, read research.md (your full brief: rules, metric, calibration, idea menu), then journal.md
+(what's been tried — don't repeat dead ends) and leaderboard.md (current best to beat).
+
+ONE-TIME, only if a cache/ folder is missing:  conda activate esm && python setup.py
+(needs `huggingface-cli login`; the silkome dataset is private).
+
+THEN loop, indefinitely:
+  1. Form ONE hypothesis likely to raise mean test R².
+  2. Edit ONLY model.py (and optionally config.json); keep the contract in model.py's header.
+     Do NOT modify dataio.py, run_experiment.py, data/, or cache/.
+  3. Run:  python run_experiment.py --tag "<short idea>"   and read the printed
+     `SCALAR  mean test R²`.
+  4. RATCHET: if it beat the top of leaderboard.md, keep the change and append a note to
+     journal.md (hypothesis + result + why). If not, revert model.py and log the negative result.
+  5. Repeat. One change per run. No test peeking beyond that scalar; prefer changes that also
+     lift the grouped-val R² (memorizing the small test set is not progress).
+
+CONTEXT: this is genuinely hard — every baseline (mean-pool / Ridge / RF / silk-type-mean /
+attention / conv / LoRA) sits at R² ≈ 0 ("predict the mean"). Any clearly positive, repeatable
+mean test R² is a real result. Explore the optional directions in research.md (sequence-aware
+pooling/conv/transformer, taxonomy fusion via the AUX hook, sequence-pattern features, log-targets /
+multi-task, LoRA fine-tuning in baselines/, or a stronger backbone via config.json) — or invent your
+own. Keep iterating; when you stop, report the best architecture and its mean test R².
+```
+
+To run a *stronger backbone* mid-search, the agent edits `config.json` (`esmc_model`) and re-runs
+`python setup.py --model <hf_id> --device cuda`.
+
 ## Files
 | file | role |
 |------|------|

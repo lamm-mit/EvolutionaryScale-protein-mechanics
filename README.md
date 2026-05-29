@@ -351,7 +351,8 @@ python run_experiment.py --tag baseline  # train model.py → print mean test R�
 ```
 The **editable asset** is `model.py` (architecture mapping residue embeddings → 4 targets); the agent
 edits it (+ `config.json`), reruns the fixed `run_experiment.py`, and ratchets on `leaderboard.md`. Its
-brief is in **`autoresearch_silk/research.md`**. The backbone is a one-line `config.json` switch
+brief is in **`autoresearch_silk/research.md`**, and a ready-to-paste **kickoff prompt** for Claude
+Code / Codex is in [`autoresearch_silk/README.md`](autoresearch_silk/README.md). The backbone is a one-line `config.json` switch
 (`esmc_model`) + re-run `setup.py --model … --device cuda` — handy for a GPU box / DGX Spark.
 
 > **Private data:** silkome is private, so `autoresearch_silk/data/` and `cache/` are git-ignored and
