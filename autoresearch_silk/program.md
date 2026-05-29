@@ -71,12 +71,19 @@ git clone https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics.git ES
 - `setup.py` cached **ESMC per-residue embeddings** for every sequence (so experiments are fast). Your
   model receives padded per-residue embeddings `x:(B,Lmax,d)` + `mask:(B,Lmax)` and outputs `(B,4)`.
 - Targets are standardized for a balanced 4-task MSE; R² is computed on raw units (scale-invariant).
-- **Switch backbone** (stronger features) by editing `config.json`'s `esmc_model` and re-running
-  `python setup.py --model <hf_id> [--device cuda]` (e.g. `biohub/ESMC-600M` or `biohub/ESMC-6B` on a GPU).
+- **Train/test split** is controlled by `config.json`'s `split_mode`: `auto` (default — use the
+  dataset's own `train`/`test` if it has them, else a harness split), `provided` (always the dataset's
+  split), or `grouped` (pool all splits + dedup + a deterministic **leakage-safe** split grouped by
+  property tuple, `test_frac`/`seed`, so identical-fiber sequences never straddle it). The internal
+  early-stopping **validation** split is always grouped within train, regardless of mode.
+- **Switch backbone** via `config.json`'s `esmc_model`; **switch dataset** via `dataset`
+  (e.g. `lamm-mit/silkome-masp`). After any change re-run `python setup.py [--device cuda]`. Caches are
+  keyed by (dataset, model) so they coexist.
 
 ## The catch (why this is hard — read this)
-There are ~3170 distinct sequences but only ~268 distinct measured-property tuples: **many sequences
-share one fiber measurement** (properties are per-fiber/species; sequences are individual spidroins).
+On the default **silkome-masp** set there are ~1028 distinct sequences but only ~233 distinct
+measured-property tuples (silkome-full: ~3170 / ~268): **many sequences share one fiber measurement**
+(properties are per-fiber/species; sequences are individual spidroins).
 So the sequence→mechanics signal is weak and indirect. The validation split is **grouped by property
 tuple** so identical-label fibers don't leak across train/val. Architectures that capture **repeat /
 motif structure** (silk is highly repetitive: poly-A crystallites, GPGXX/GGX, GAGAGS) or that pool
@@ -123,22 +130,22 @@ uncertainty-weighted 4-task loss · contrastive pretraining on sequence→proper
 **LoRA fine-tuning** and a **stronger backbone (600M/6B)**.
 
 ## Reference measurements (calibration — read before optimizing)
-Measured on this exact split with ESMC-300M **mean-pooled** features:
+Default dataset **silkome-masp** (ESMC-300M **mean-pooled** features, provided train/test split):
 
 | approach | mean test R² |
 |----------|----:|
 | predict the global mean | ~0.00 (by definition) |
-| **mean-pool → MLP (seeded baseline)** | **~0.01** |
-| Ridge (mean-pool features) | −0.12 … −0.00 (only ≈0 at very high regularization) |
-| RandomForest (mean-pool) | −0.04 |
-| `category1` (silk-type) mean predictor | −0.015 |
-| Ridge, grouped 5-fold CV (honest generalization) | −0.32 |
+| **mean-pool → MLP (baseline)** | **~0.01** |
+| Ridge (mean-pool features) | −0.41 … −0.02 (only ≈0 at very high regularization) |
+| RandomForest (mean-pool) | −0.07 |
+| `category1` (silk-type) mean predictor | −0.01 |
 
-**So the bar is brutal: nothing beats predicting the mean yet.** Note 173/175 test property-tuples
-also appear in train, yet classical models still go *negative* — the single-sequence→fiber-mechanics
-signal is extremely weak, and the train/test split looks distribution-shifted. **Any clearly positive
-mean test R² is a genuine result.** Don't be fooled by tiny positive numbers (~0.01) — they're just
-"predict the mean" noise; aim for a robust, repeatable gain that also shows up in grouped-val R².
+(silkome-full is the same story: baseline ≈ 0, Ridge/RF/category-mean ≤ 0, grouped-CV ≈ −0.3.)
+
+**So the bar is brutal: nothing beats predicting the mean yet** — the single-sequence→fiber-mechanics
+signal is extremely weak. **Any clearly positive mean test R² is a genuine result.** Don't be fooled
+by tiny positive numbers (~0.01) — they're just "predict the mean" noise; aim for a robust, repeatable
+gain that also shows up in grouped-val R².
 
 **Most promising levers** (in rough order of expected payoff):
 1. **LoRA fine-tuning** of ESMC end-to-end (`baselines/lora_finetune.py`) — lets the backbone

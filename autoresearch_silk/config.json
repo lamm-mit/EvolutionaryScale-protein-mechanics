@@ -1,6 +1,12 @@
 {
   "esmc_model": "biohub/ESMC-300M",
-  "_comment_model": "Switch backbone here, then re-run: python setup.py --model <hf_id> [--device cuda]. Caches are per-model, so 300M/600M/6B can coexist.",
+  "_comment_model": "Switch backbone here, then re-run: python setup.py --model <hf_id> [--device cuda]. Caches are per-(dataset,model), so 300M/600M/6B coexist.",
+
+  "dataset": "lamm-mit/silkome-masp",
+  "_comment_dataset": "HF dataset to use (default lamm-mit/silkome-masp, MaSp-only with its own train/test split; or lamm-mit/silkome-full). Switch here, then re-run: python setup.py.",
+  "split_mode": "auto",
+  "_comment_split_mode": "auto = use the dataset's own train/test split if it has one, else a harness grouped split; provided = always use the dataset's split; grouped = always pool+dedup and make a leakage-safe split grouped by property tuple (uses test_frac).",
+  "test_frac": 0.15,
 
   "seed": 0,
   "val_frac": 0.15,

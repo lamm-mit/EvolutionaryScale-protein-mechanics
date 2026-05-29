@@ -1,20 +1,23 @@
 #!/usr/bin/env python
 """ONE-TIME setup for the silk autoresearch loop. Run this before experimenting.
 
-Downloads `lamm-mit/silkome-full` (private — needs `huggingface-cli login`), keeps
-sequence + the 4 mechanical targets, removes train/test sequence overlap, and CACHES ESMC
-embeddings (mean-pooled + per-residue, fp16) so experiments are fast and fully local.
+Downloads a silkome dataset (private — needs `huggingface-cli login`), keeps sequence + the 4
+mechanical targets + taxonomy, and CACHES ESMC embeddings (mean-pooled + per-residue, fp16) so
+experiments are fast and fully local. The dataset's own splits are IGNORED: all splits are pooled,
+deduped by sequence, and re-split into a deterministic **leakage-safe grouped** train/test (test_frac).
 
-Backbone is configurable — caches are per-model so several can coexist:
-  python setup.py                              # ESMC-300M (default; also reads config.json)
+Dataset and backbone are configurable; caches are keyed by (dataset, model) so several coexist:
+  python setup.py                                    # config.json defaults (silkome-masp + ESMC-300M)
+  python setup.py --dataset lamm-mit/silkome-full    # larger set (3.5k seqs)
   python setup.py --model biohub/ESMC-600M
-  python setup.py --model biohub/ESMC-6B --device cuda     # e.g. on a DGX Spark
+  python setup.py --model biohub/ESMC-6B --device cuda            # e.g. on a DGX Spark
+  python setup.py --smoke-test                       # quick check, no cache written
 
-Outputs (gitignored except the small parquets):
-  data/{train,test}.parquet                    # sequence + idv + category1 + 4 targets
-  cache/<slug>_{train,test}_mean.npy           # (N, d) mean-pooled embeddings
-  cache/<slug>_{train,test}_resid.npz          # flat per-residue fp16 + per-seq lengths
-  cache/<slug>_meta.json                       # {model, dim}
+Outputs (all gitignored — silkome is private):
+  data/<dataset>_{train,test}.parquet                # sequence + idv + taxonomy + 4 targets
+  cache/<dataset>__<model>_{train,test}_mean.npy     # (N, d) mean-pooled embeddings
+  cache/<dataset>__<model>_{train,test}_resid.npz    # flat per-residue fp16 + per-seq lengths
+  cache/<dataset>__<model>_meta.json                 # {model, dataset, dim, test_frac, seed}
 """
 import argparse, json, os, sys, time
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
@@ -28,8 +31,13 @@ META = ["family", "genus", "species", "category1", "category2", "sex", "ncbi"]
 KEEP = ["idv", "sequence"] + META + TARGETS
 
 
-def slug(model):
-    return model.split("/")[-1]
+def dataset_slug(dataset):
+    return dataset.split("/")[-1]
+
+
+def cache_key(dataset, model):
+    # cache/data are keyed by dataset+model so several can coexist
+    return f"{dataset_slug(dataset)}__{model.split('/')[-1]}"
 
 
 def device_for(model, prefer):
@@ -45,17 +53,46 @@ def device_for(model, prefer):
     return "cpu"
 
 
-def load_silkome():
-    from datasets import load_dataset
-    tr = load_dataset("lamm-mit/silkome-full", split="train").to_pandas()
-    te = load_dataset("lamm-mit/silkome-full", split="test").to_pandas()
-    tr = tr.dropna(subset=TARGETS)[KEEP].reset_index(drop=True)
-    te = te.dropna(subset=TARGETS)[KEEP].reset_index(drop=True)
-    overlap = set(tr["sequence"]) & set(te["sequence"])
-    if overlap:                            # avoid train/test leakage
-        tr = tr[~tr["sequence"].isin(overlap)].reset_index(drop=True)
-        print(f"[setup] dropped {len(overlap)} train rows whose sequence is in test")
-    return tr, te
+def _clean(df):
+    return df.dropna(subset=TARGETS)[KEEP].drop_duplicates(subset="sequence").reset_index(drop=True)
+
+
+def load_silkome(dataset, test_frac=0.15, seed=0, split_mode="auto"):
+    """Return (train_df, test_df, mode_used). Drops rows missing any target + dedups by sequence.
+
+    split_mode:
+      "provided" — use the dataset's own `train`/`test` splits (drops train seqs that also appear in
+                   test to avoid exact-sequence leakage).
+      "grouped"  — pool all splits, dedup, and make a deterministic **leakage-safe** split grouped by
+                   measured-property tuple (test_frac, seed) so identical-fiber sequences never straddle it.
+      "auto"     — use "provided" if the dataset has both train & test splits, else "grouped".
+    Works for any silkome-style dataset (e.g. silkome-masp now ships train/test; split-less ones use grouped)."""
+    import hashlib
+    import pandas as pd
+    from datasets import get_dataset_split_names, load_dataset
+    avail = get_dataset_split_names(dataset)
+    has_provided = "train" in avail and "test" in avail
+    use_provided = (split_mode == "provided") or (split_mode == "auto" and has_provided)
+
+    if use_provided:
+        if not has_provided:
+            raise SystemExit(f"split_mode='provided' but {dataset} lacks train+test splits (has {avail})")
+        tr = _clean(load_dataset(dataset, split="train").to_pandas())
+        te = _clean(load_dataset(dataset, split="test").to_pandas())
+        overlap = set(tr["sequence"]) & set(te["sequence"])
+        if overlap:
+            tr = tr[~tr["sequence"].isin(overlap)].reset_index(drop=True)
+        return tr, te, "provided"
+
+    # grouped: pool all non-reserved splits, dedup, split by property tuple
+    splits = [s for s in avail if s != "all"]                 # 'all' = reserved union keyword
+    df = _clean(pd.concat([load_dataset(dataset, split=s).to_pandas() for s in splits], ignore_index=True))
+    keys = [hashlib.md5(np.round(r, 5).tobytes()).hexdigest() for r in df[TARGETS].to_numpy()]
+    uniq = list(dict.fromkeys(keys))
+    np.random.default_rng(seed).shuffle(uniq)
+    test_groups = set(uniq[:max(1, int(round(test_frac * len(uniq))))])
+    is_test = np.array([k in test_groups for k in keys])
+    return df[~is_test].reset_index(drop=True), df[is_test].reset_index(drop=True), "grouped"
 
 
 def embed_split(df, tok, model, device, batch_size=8):
@@ -86,6 +123,13 @@ def main():
     ap = argparse.ArgumentParser(description="Cache silkome data + ESMC embeddings.")
     cfg = json.load(open(os.path.join(HERE, "config.json")))
     ap.add_argument("--model", default=cfg.get("esmc_model", "biohub/ESMC-300M"))
+    ap.add_argument("--dataset", default=cfg.get("dataset", "lamm-mit/silkome-masp"),
+                    help="HF dataset repo (default lamm-mit/silkome-masp; or lamm-mit/silkome-full)")
+    ap.add_argument("--test-frac", type=float, default=cfg.get("test_frac", 0.15))
+    ap.add_argument("--split-mode", default=cfg.get("split_mode", "auto"),
+                    choices=["auto", "provided", "grouped"],
+                    help="auto: use dataset's train/test if present else grouped; "
+                         "provided: dataset's own split; grouped: harness leakage-safe split")
     ap.add_argument("--device", default="auto")
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--data-only", action="store_true",
@@ -96,28 +140,33 @@ def main():
                          "no parquet/cache written. Run this before the full setup.")
     args = ap.parse_args()
 
+    seed = cfg.get("seed", 0)
     if args.smoke_test:
         import torch
         from transformers import AutoModelForMaskedLM, AutoTokenizer
-        tr, te = load_silkome()
+        tr, te, mode = load_silkome(args.dataset, args.test_frac, seed, args.split_mode)
         device = device_for(args.model, args.device)
         tok = AutoTokenizer.from_pretrained(args.model)
         m = AutoModelForMaskedLM.from_pretrained(args.model)
         m = (m.float() if device != "cuda" and "6B" in args.model else m).to(device).eval()
         mean, resid, lengths = embed_split(tr.head(4).reset_index(drop=True), tok, m, device, 2)
-        print(f"[smoke] OK | model={args.model} device={device} | train={len(tr)} test={len(te)} | "
-              f"mean{mean.shape} resid{resid.shape} lengths={lengths.tolist()}")
+        print(f"[smoke] OK | dataset={args.dataset} ({mode} split) model={args.model} device={device} | "
+              f"train={len(tr)} test={len(te)} | mean{mean.shape} resid{resid.shape} "
+              f"lengths={lengths.tolist()}")
         return
 
     os.makedirs(os.path.join(HERE, "data"), exist_ok=True)
     os.makedirs(os.path.join(HERE, "cache"), exist_ok=True)
-    sl = slug(args.model)
+    key = cache_key(args.dataset, args.model)
+    dsl = dataset_slug(args.dataset)
 
-    tr, te = load_silkome()
-    tr.to_parquet(os.path.join(HERE, "data", "train.parquet"))
-    te.to_parquet(os.path.join(HERE, "data", "test.parquet"))
-    print(f"[setup] train={len(tr)} test={len(te)} rows saved to data/ "
-          f"(cols: {', '.join(c for c in tr.columns if c != 'sequence')})")
+    tr, te, mode = load_silkome(args.dataset, args.test_frac, seed, args.split_mode)
+    tr.to_parquet(os.path.join(HERE, "data", f"{dsl}_train.parquet"))
+    te.to_parquet(os.path.join(HERE, "data", f"{dsl}_test.parquet"))
+    split_desc = f"{mode} split" + (f" (test_frac={args.test_frac}, seed={seed})" if mode == "grouped"
+                                    else " (dataset's own train/test)")
+    print(f"[setup] dataset={args.dataset} | {split_desc} -> train={len(tr)} test={len(te)} | cols: "
+          f"{', '.join(c for c in tr.columns if c != 'sequence')}")
     if args.data_only:
         print("[setup] --data-only: parquets regenerated; embeddings left untouched.")
         return
@@ -135,15 +184,15 @@ def main():
         t0 = time.time()
         mean, resid, lengths = embed_split(df, tok, model, device, args.batch_size)
         dim = mean.shape[1]
-        np.save(os.path.join(HERE, "cache", f"{sl}_{name}_mean.npy"), mean)
-        np.savez(os.path.join(HERE, "cache", f"{sl}_{name}_resid.npz"),
-                 resid=resid, lengths=lengths)
+        np.save(os.path.join(HERE, "cache", f"{key}_{name}_mean.npy"), mean)
+        np.savez(os.path.join(HERE, "cache", f"{key}_{name}_resid.npz"), resid=resid, lengths=lengths)
         print(f"[setup] {name}: mean{mean.shape} resid{resid.shape} ({time.time()-t0:.0f}s)")
 
-    json.dump({"model": args.model, "dim": int(dim)},
-              open(os.path.join(HERE, "cache", f"{sl}_meta.json"), "w"))
-    print(f"[setup] done. Cached backbone '{args.model}' (dim={dim}). "
-          f"Set this model in config.json to use it in experiments.")
+    json.dump({"model": args.model, "dataset": args.dataset, "dim": int(dim),
+               "split_mode": mode, "test_frac": args.test_frac, "seed": seed},
+              open(os.path.join(HERE, "cache", f"{key}_meta.json"), "w"))
+    print(f"[setup] done. Cached '{args.dataset}' + '{args.model}' (dim={dim}). "
+          f"Set `dataset`/`esmc_model` in config.json to use this in experiments.")
 
 
 if __name__ == "__main__":

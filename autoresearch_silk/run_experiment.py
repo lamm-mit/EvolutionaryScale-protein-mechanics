@@ -83,7 +83,8 @@ def main():
     except Exception:
         commit = ""
     base = {"time": datetime.datetime.now().isoformat(timespec="seconds"), "tag": args.tag,
-            "commit": commit, "backbone": cfg["esmc_model"]}
+            "commit": commit, "dataset": cfg.get("dataset", "lamm-mit/silkome-masp"),
+            "backbone": cfg["esmc_model"]}
 
     try:
         train, test = SilkData("train"), SilkData("test")

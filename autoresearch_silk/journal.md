@@ -5,6 +5,12 @@ so they aren't repeated). Newest at the bottom.
 
 ---
 
+- **(default dataset = `silkome-masp`, provided train/test split; ESMC-300M)** — baseline masked
+  mean-pool → MLP → mean test R² ≈ **0.006** (val −0.023). Classical (mean-pool features): Ridge
+  −0.41…−0.02, RandomForest −0.07, `category1`-mean −0.01. Same story as silkome-full: nothing beats
+  the mean yet. (Ledger was reset for the dataset switch; this is the bar to beat.)
+
+### Earlier findings on `silkome-full` (for reference)
 - **(seed) baseline** — masked mean-pool → 2-layer MLP on ESMC-300M embeddings → mean test R² ≈ **0.01**
   (val −0.065). Attention-pool ≈ 0.00, Conv1D ≈ −0.02. All ≈ "predict the mean".
 - **(calibration, classical)** — on the same split with mean-pool features: Ridge −0.12…−0.00,

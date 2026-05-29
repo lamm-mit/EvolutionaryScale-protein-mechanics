@@ -334,13 +334,14 @@ and it iterates — *propose an architecture change → run a short training job
 keep it if it improved, else roll back* — to learn to predict silk fiber mechanics
 (**toughness, E, strength, strain**) **directly from sequence** with ESMC.
 
-**Why a search?** Using [`lamm-mit/silkome-full`](https://huggingface.co/datasets/lamm-mit/silkome-full)
-(3197 train / 357 test, all four targets), this is a genuinely hard problem: ~3170 distinct sequences
-map to only ~268 fiber measurements, so the single-sequence→mechanics signal is weak. We measured the
-floor honestly — **mean-pool ESMC-300M baselines and classical models (Ridge/RandomForest/silk-type
-mean) all sit at R² ≈ 0 or below**, even though 173/175 test property-tuples also appear in train. So
-*any clearly positive, repeatable R² is a real result*, and the loop is pointed at the promising levers
-(**LoRA fine-tuning**, **bigger backbone 600M/6B**, **per-residue sequence models**, target reframing).
+**Why a search?** On the default [`lamm-mit/silkome-masp`](https://huggingface.co/datasets/lamm-mit/silkome-masp)
+(~1028 MaSp sequences, all four targets; `silkome-full` is also selectable), this is genuinely hard:
+sequences map to only a few hundred distinct fiber measurements, so the single-sequence→mechanics
+signal is weak. We measured the floor honestly — **mean-pool ESMC-300M baselines and classical models
+(Ridge/RandomForest/silk-type mean) all sit at R² ≈ 0 or below**. So *any clearly positive, repeatable
+R² is a real result*, and the loop is pointed at the promising levers (**LoRA fine-tuning**, **bigger
+backbone 600M/6B**, **per-residue sequence models**, target reframing). The dataset is a `config.json`
+switch; the harness can use the dataset's own train/test split or make its own leakage-safe grouped one.
 
 **How it works**
 ```bash

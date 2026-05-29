@@ -8,11 +8,11 @@ silk fiber mechanics (**toughness, E, strength, strain**) **directly from sequen
 Everything an agent needs is in this folder; it should be given **only this folder**.
 
 ## Why a search?
-Predicting fiber mechanics from a single spidroin sequence is genuinely hard: in `lamm-mit/silkome-full`,
-~3170 distinct sequences map to only ~268 distinct property tuples (properties are per-fiber; many
-sequences share one measurement). Naive mean-pooling of embeddings leaves a lot on the table, so we let
-the agent explore pooling / Conv / attention / multi-task / LoRA / stronger-backbone ideas and **ratchet**
-on a fixed, leakage-controlled metric.
+Predicting fiber mechanics from a single spidroin sequence is genuinely hard: in the default
+`lamm-mit/silkome-masp` (~1028 sequences), many sequences map to the same fiber measurement (~233
+distinct property tuples), so the signal is weak. Naive mean-pooling of embeddings leaves a lot on the
+table, so we let the agent explore pooling / Conv / attention / multi-task / LoRA / stronger-backbone
+ideas and **ratchet** on a fixed metric. (Dataset is a `config.json` switch — e.g. `lamm-mit/silkome-full`.)
 
 ## Quick start
 ```bash
@@ -120,17 +120,24 @@ rely on the per-run git commits, so run the loop git-ratcheted (see *program.md*
 | `journal.md` | agent's running notes (hypotheses + negative results) |
 | `baselines/` | drop-in architectures (attention, conv) + a self-contained LoRA script |
 
-## Switching backbone (e.g. on a GPU box / DGX Spark)
+## Switching dataset or backbone (e.g. on a GPU box / DGX Spark)
+Edit `config.json` (`dataset` and/or `esmc_model`), then re-run `setup.py`:
 ```bash
-# edit config.json: "esmc_model": "biohub/ESMC-6B", then:
+# smaller MaSp-only dataset:           "dataset": "lamm-mit/silkome-masp"
+python setup.py
+# stronger backbone:                   "esmc_model": "biohub/ESMC-6B"
 python setup.py --model biohub/ESMC-6B --device cuda
 python run_experiment.py --tag "6B features"
 ```
-Caches are per-model, so 300M / 600M / 6B can coexist.
+Caches are keyed by **(dataset, model)**, so silkome-full/masp × 300M/600M/6B all coexist.
+(`--dataset`/`--model`/`--test-frac` can also be passed on the `setup.py` command line.)
 
 ## Notes
-- **Private data:** `lamm-mit/silkome-full` is private; `data/` and `cache/` are **git-ignored** and never
+- **Private data:** the silkome datasets are private; `data/` and `cache/` are **git-ignored** and never
   committed. Re-run `setup.py` (with HF auth) to repopulate locally.
-- **Metric:** mean of the four per-target test R² (scale-invariant). The validation split used for early
-  stopping is **grouped by property tuple** to avoid identical-fiber leakage; the test split is the
-  dataset's own. Don't optimize the test set directly — prefer changes that also lift grouped-val R².
+- **Metric:** mean of the four per-target test R² (scale-invariant).
+- **Train/test split** (`config.json` `split_mode`): `auto` (default — the dataset's own `train`/`test`
+  if present, else a harness split), `provided`, or `grouped` (pool all splits + dedup + deterministic
+  split **grouped by property tuple**, `test_frac`, so identical-fiber sequences don't leak across it).
+  Early-stopping always uses a further **grouped** validation split within train. Don't optimize the
+  test set directly — prefer changes that also lift grouped-val R².

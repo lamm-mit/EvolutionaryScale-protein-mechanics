@@ -15,24 +15,26 @@ def _cfg():
     return json.load(open(os.path.join(HERE, "config.json")))
 
 
-def _slug():
-    return _cfg()["esmc_model"].split("/")[-1]
+def _dataset(): return _cfg().get("dataset", "lamm-mit/silkome-masp")
+def _dataset_slug(): return _dataset().split("/")[-1]
+def _cache_key(): return f"{_dataset_slug()}__{_cfg()['esmc_model'].split('/')[-1]}"
 
 
 class SilkData:
     """Holds one split: per-residue embeddings (list of (Li,d)), mean (N,d), targets (N,4), groups."""
     def __init__(self, split):
         import pandas as pd
-        sl = _slug()
-        meta_path = os.path.join(HERE, "cache", f"{sl}_meta.json")
+        key, dsl = _cache_key(), _dataset_slug()
+        meta_path = os.path.join(HERE, "cache", f"{key}_meta.json")
         if not os.path.exists(meta_path):
             raise FileNotFoundError(
-                f"No cache for '{_cfg()['esmc_model']}'. Run:  python setup.py  first.")
+                f"No cache for dataset '{_dataset()}' + model '{_cfg()['esmc_model']}'. "
+                f"Run:  python setup.py  first.")
         self.dim = json.load(open(meta_path))["dim"]
-        self.df = pd.read_parquet(os.path.join(HERE, "data", f"{split}.parquet"))
+        self.df = pd.read_parquet(os.path.join(HERE, "data", f"{dsl}_{split}.parquet"))
         df = self.df
-        self.mean = np.load(os.path.join(HERE, "cache", f"{sl}_{split}_mean.npy"))
-        npz = np.load(os.path.join(HERE, "cache", f"{sl}_{split}_resid.npz"))
+        self.mean = np.load(os.path.join(HERE, "cache", f"{key}_{split}_mean.npy"))
+        npz = np.load(os.path.join(HERE, "cache", f"{key}_{split}_resid.npz"))
         flat, lengths = npz["resid"], npz["lengths"]
         offs = np.concatenate([[0], np.cumsum(lengths)])
         self.resid = [flat[offs[i]:offs[i + 1]] for i in range(len(lengths))]   # list of (Li,d) fp16
