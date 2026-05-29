@@ -1,6 +1,6 @@
 # Protein Language Models for Structural Proteins — ESMC, ESMFold2 & SAEs
 
-Teaching notebooks that use the newest open **EvolutionaryScale / Biohub** protein models to explore
+Example notebooks that use the **EvolutionaryScale / Biohub** protein models to explore
 **silk and other structural / biomaterials proteins** (spider dragline, silkworm fibroin, collagen,
 elastin, resilin, keratin), with well-folded globular proteins as controls.
 
@@ -8,11 +8,6 @@ elastin, resilin, keratin), with well-folded globular proteins as controls.
 |----------|--------------|---------------|
 | **`ESM_structural_proteins.ipynb`** | ESMC embeddings, masked-language modeling, in-silico mutational scanning, attention, **ESMFold2** structure prediction, a transfer-learning head, and an interactive relatedness graph | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lamm-mit/EvolutionaryScale-protein-mechanics/blob/main/ESM_structural_proteins.ipynb) |
 | **`ESM_sae_structural_proteins.ipynb`** | **Sparse-autoencoder (SAE)** feature interpretation of ESMC-6B — *what concepts* the model uses for each material | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lamm-mit/EvolutionaryScale-protein-mechanics/blob/main/ESM_sae_structural_proteins.ipynb) |
-
-> **Colab links** point to [`github.com/lamm-mit/EvolutionaryScale-protein-mechanics`](https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics)
-> and assume the notebooks live at the **repo root** on the **`main`** branch. If you upload them into a
-> subfolder (or use `master`), update the path in the two badge URLs accordingly. On Colab, choose a
-> **GPU / high-RAM runtime** — ESMFold2 and ESMC-6B are heavy — and run the install cell first (see *Setup*).
 
 ---
 
@@ -177,7 +172,7 @@ EvolutionaryScale-protein-mechanics/      # (local working folder: ESM_samples/)
 
 ---
 
-## 7 · Caveats
+## 7 · Caveats and Notes
 
 - pLMs/SAE outputs are **in-silico hypotheses**, not wet-lab annotations; SAE feature descriptions are
   auto-generated and can be wrong, especially for rare biology.
