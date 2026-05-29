@@ -365,8 +365,6 @@ Code / Codex is in [`autoresearch_silk/README.md`](autoresearch_silk/README.md).
 EvolutionaryScale-protein-mechanics/      # (local working folder: ESM_samples/)
 ├── ESM_structural_proteins.ipynb         # Notebook 1 (executed, with outputs)
 ├── ESM_sae_structural_proteins.ipynb     # Notebook 2 (executed, with outputs)
-├── build_notebook.py                      # generator for Notebook 1 (clean-slate; overwrites the .ipynb)
-├── build_sae_notebook.py                  # generator for Notebook 2
 ├── cli/                                   # command-line tools (fold, embed, mutscan, sae, train, predict)
 │   ├── esm_common.py                      #   shared helpers (device, FASTA, batched embeddings)
 │   ├── esm_fold.py  esm_embed.py  esm_mutscan.py  esm_sae.py
@@ -380,9 +378,6 @@ EvolutionaryScale-protein-mechanics/      # (local working folder: ESM_samples/)
 ├── SKILL.md                               # agent-readable description of the CLI toolkit
 └── README.md
 ```
-
-> The `build_*.py` scripts regenerate the notebooks from scratch (no personal edits). If you've edited
-> a notebook by hand, don't re-run its generator — it will overwrite your changes.
 
 ---
 
