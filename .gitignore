@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+
+# Local model/run outputs (not committed)
+head_model/
+head_*/
+folds/
+*.adapter/
+/tmp_*/
+
+# large local caches
+.cache/
