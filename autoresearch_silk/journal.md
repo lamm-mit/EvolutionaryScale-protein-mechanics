@@ -13,3 +13,10 @@ so they aren't repeated). Newest at the bottom.
   the single-sequence→mechanics signal is essentially absent; floor is the global mean.
   → Next bets (untried): **LoRA fine-tuning**, **bigger backbone (600M/6B)**, **per-residue sequence
   models**, target reframing. The mean-pool head search alone is probably capped near 0.
+- **(GPU runs, NVIDIA GB10 / DGX Spark)** — reproduced on CUDA: mean-pool baseline mean test R² ≈
+  **−0.03**; **300M LoRA** end-to-end (1.85M trainable, 3 epochs) → loss flat ~180, mean test R²
+  ≈ **−0.001** (still "predict the mean"). **ESMC-6B + LoRA** (batch 4, max-len 512, bf16) started at
+  epoch-1 val **−0.126** but was **~1 hr/epoch** — killed as too slow for an interactive trial; left
+  for a future agent to explore with faster settings (bigger batch, shorter max-len, torch.compile,
+  fewer steps). Takeaway so far: nothing beats the mean yet; the open levers remain 6B/LoRA at scale,
+  per-residue sequence models, and reframing the target/task.
