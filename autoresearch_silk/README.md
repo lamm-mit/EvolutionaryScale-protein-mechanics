@@ -66,7 +66,7 @@ CONTEXT: this is genuinely hard — simple baselines (mean-pool / Ridge / RF / s
 sit near R² ≈ 0 ("predict the mean"); run the baseline first to establish the actual bar. Any clearly
 positive, repeatable mean test R² is a real result. Explore the optional directions in program.md (sequence-aware
 pooling/conv/transformer, taxonomy fusion via the AUX hook, sequence-pattern features, log-targets /
-multi-task, LoRA fine-tuning in baselines/, or a stronger backbone via config.json) — or invent your
+multi-task, LoRA fine-tuning as a separate end-to-end script, or a stronger backbone via config.json) — or invent your
 own. Keep iterating; when you stop, report the best architecture and its mean test R².
 ```
 
@@ -118,7 +118,6 @@ rely on the per-run git commits, so run the loop git-ratcheted (see *program.md*
 | `analyze_results.py` | plots (progress / architecture / params) + tables from `ledger.jsonl` |
 | `export_experiments.py` | materialize each committed experiment into a folder (model.py snapshot + diff) |
 | `journal.md` | agent's running notes (hypotheses + negative results) |
-| `baselines/` | drop-in architectures (attention, conv) + a self-contained LoRA script |
 
 ## Switching dataset or backbone (e.g. on a GPU box / DGX Spark)
 Edit `config.json` (`dataset` and/or `esmc_model`), then re-run `setup.py`:
@@ -136,6 +135,12 @@ Caches are keyed by **(dataset, model)**, so silkome-full/masp × 300M/600M/6B a
 - **Private data:** the silkome datasets are private; `data/` and `cache/` are **git-ignored** and never
   committed. Re-run `setup.py` (with HF auth) to repopulate locally.
 - **Metric:** mean of the four per-target test R² (scale-invariant).
+- **Task scope:** row-level, **one sequence → 4 targets**. The harness is not set up for the
+  `silkome-*-idv-grouped` (list-of-sequences-per-fiber) variants — those need a different batcher and a
+  `model.py` that consumes a set of sequences per example.
+- **Exact-sequence dedup:** `setup.py` drops duplicate sequences (and any test sequence also present in
+  train), so the cached silkome-masp split is **891 train / 137 test** vs. the raw HF **895 / 138** —
+  this avoids overcounting identical spidroins, and applies to provided splits too.
 - **Train/test split** (`config.json` `split_mode`): `auto` (default — the dataset's own `train`/`test`
   if present, else a harness split), `provided`, or `grouped` (pool all splits + dedup + deterministic
   split **grouped by property tuple**, `test_frac`, so identical-fiber sequences don't leak across it).

@@ -20,8 +20,8 @@ your module:
   AUX_COLS = ["family", "genus", "category1"]        # meta columns from data/*.parquet
   def build_aux_heads(self, class_counts): ...        # called once with {col: n_classes}
   def auxiliary_loss(self, x, mask, aux_labels): ...   # scalar added to loss in TRAINING only
-Eval/metric stay forward()->4 targets, so it remains sequence-only. See
-`baselines/fusion_taxonomy.py`. Tune `aux_weight` in config.json.
+Eval/metric stay forward()->4 targets, so it remains sequence-only. run_experiment.py calls these
+hooks automatically when present; tune `aux_weight` in config.json.
 
 IDEAS TO EXPLORE (go beyond these — the agent chooses what, if anything, to try):
   * pooling: masked-mean (baseline), masked-max, attention/gated pooling, [CLS]-style query,
@@ -35,7 +35,7 @@ IDEAS TO EXPLORE (go beyond these — the agent chooses what, if anything, to tr
     or GPT/ESM surprisal to flag key residues; fuse with the embedding pool.
   * regularization: dropout, weight decay, mixup over pooled features.
   * bigger backbone: edit config.json `esmc_model` (600M/6B) then re-run setup.py.
-  * harder mode: LoRA-fine-tune ESMC end-to-end (see baselines/lora_finetune.py).
+  * harder mode: LoRA-fine-tune ESMC end-to-end (a separate script outside this head-only harness).
 
 REMEMBER THE CHALLENGE: many distinct sequences share ONE fiber measurement, so the signal is
 weak/indirect (simple baselines tend to sit near R²≈0 — establish the bar yourself first; see

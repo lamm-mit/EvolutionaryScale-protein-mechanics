@@ -47,22 +47,23 @@ Every experiment is committed and **tagged**, so even rejected code stays recove
   data, or the cache — the metric and splits must stay fixed and comparable.
 - **No test peeking** beyond the single scalar the harness reports. The harness already early-stops on
   a *grouped* validation split (see "the catch"); do your model selection via that, not the test set.
-- Keep each run reasonably fast (aim ≤ a few minutes) so you can iterate a lot. If an idea needs the
-  backbone fine-tuned, see `baselines/lora_finetune.py` (slower, separate path).
+- Keep each run reasonably fast (aim ≤ a few minutes) so you can iterate a lot. The cached-embedding
+  harness is **head-only** (the backbone is frozen/precomputed); fine-tuning the backbone end-to-end
+  (LoRA) is a separate, slower path you'd script yourself outside `run_experiment.py`.
 - One change per run when possible, so you know what moved the metric.
 
 ## Git workflow (two clones: RUN vs EDIT)
 Keep reusable infrastructure changes separate from optimization experiments by using two local clones:
 
 ```bash
-# EDIT clone — change reusable code (dataio.py, run_experiment.py, baselines, docs) and push
+# EDIT clone — change reusable code (dataio.py, run_experiment.py, docs) and push
 git clone https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics.git ESM-edit
 # RUN clone — the agent experiments here; per-experiment commits accumulate
 git clone https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics.git ESM-run
 ```
 - The **agent runs in the RUN clone** (`ESM-run/autoresearch_silk/`) and git-commits each experiment
   there (model.py + ledger/leaderboard/journal), as in the loop above.
-- Reusable fixes (harness, new baselines, docs) are made in the **EDIT clone**, pushed, then
+- Reusable fixes (harness, docs) are made in the **EDIT clone**, pushed, then
   `git pull`ed into RUN — so infra changes don't get tangled with experiment history.
 - `data/` and `cache/` are git-ignored, so each clone runs `python setup.py` once (needs HF auth).
   The metric/splits are deterministic, so results stay comparable across clones.
@@ -90,12 +91,20 @@ motif structure** (silk is highly repetitive: poly-A crystallites, GPGXX/GGX, GA
 the sequence cleverly are more likely to generalize than naive mean-pooling. Beware: it is easy to
 "improve" by overfitting the small test set — prefer changes that also raise the grouped val R².
 
+**Two things to know about the cached data:**
+- **Exact-sequence dedup.** `setup.py` drops exact-duplicate sequences (and any test sequence also in
+  train), so the cached silkome-masp split is **891 train / 137 test**, slightly fewer than the raw HF
+  split (895 / 138). This avoids overcounting identical spidroins; the metric is computed on the deduped
+  set.
+- **Row-level, single-sequence task.** Each example is ONE sequence → 4 targets. The harness is *not*
+  set up for the idv-grouped variants (`silkome-*-idv-grouped`, list-of-sequences per fiber) — those
+  would need a different batcher and a `model.py` that consumes a set of sequences per example.
+
 ## Ideas (starting points — invent your own!)
 Pooling (attention/gated/GeM/mean+max+std) · Conv1D / dilated convs over residues (motif detectors) ·
 small Transformer / set-transformer · per-target heads vs shared trunk · log-transform skewed targets
 (toughness, E) · uncertainty-weighted multi-task loss · concat composition/length/motif-count features ·
-stronger backbone (600M/6B) · SAE features · LoRA fine-tuning (`baselines/`). Drop-in alternatives to
-copy into `model.py` are in `baselines/`.
+stronger backbone (600M/6B) · SAE features · LoRA fine-tuning (separate end-to-end path; see Rules).
 
 ### Suggested research directions (with built-in support)
 
@@ -108,7 +117,7 @@ AUX_COLS = ["family", "genus", "category1"]          # taxonomy targets predicte
 def build_aux_heads(self, class_counts): ...          # run_experiment calls this with {col: n_classes}
 def auxiliary_loss(self, x, mask, aux_labels): ...    # added to the loss during TRAINING only
 ```
-See `baselines/fusion_taxonomy.py` (copy it over `model.py`); tune `aux_weight` in `config.json`.
+`run_experiment.py` calls these automatically when present; tune `aux_weight` in `config.json`.
 Variants: two-stage (pretrain the taxonomy classifier, then fuse its frozen features), or use the
 *predicted* taxonomy posterior as an extra input to the property head.
 *Honest caveat:* a ground-truth `category1`-mean predictor scores R² ≈ 0 on this split, so taxonomy
@@ -142,8 +151,8 @@ positive, repeatable mean test R² is a genuine result.** Don't be fooled by tin
 (~0.01) — they're "predict the mean" noise; aim for a robust gain that also shows up in grouped-val R².
 
 **Most promising levers** (in rough order of expected payoff):
-1. **LoRA fine-tuning** of ESMC end-to-end (`baselines/lora_finetune.py`) — lets the backbone
-   specialize; the cached-embedding head search may be capped near 0.
+1. **LoRA fine-tuning** of ESMC end-to-end (a separate script outside this head-only harness) — lets
+   the backbone specialize; the cached-embedding head search may be capped near 0.
 2. **Stronger backbone**: `ESMC-600M` / `ESMC-6B` (edit `config.json` + re-run `setup.py`,
    ideally on a GPU). Bigger representations may expose signal mean-pool 300M can't.
 3. **Per-residue sequence models** (Conv/attention/transformer) that read repeat/motif structure.

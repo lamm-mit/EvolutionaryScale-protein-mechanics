@@ -374,7 +374,8 @@ EvolutionaryScale-protein-mechanics/      # (local working folder: ESM_samples/)
 ├── data/                                  # built dataset CSV (structural_protein_families.csv)
 ├── autoresearch_silk/                     # self-contained Karpathy-style autoresearch loop
 │   ├── program.md  model.py  config.json  setup.py  dataio.py  run_experiment.py
-│   ├── baselines/   leaderboard.md  journal.md          # (data/ & cache/ are git-ignored: private)
+│   ├── analyze_results.py  export_experiments.py  leaderboard.md  journal.md  ledger.jsonl
+│   │                                       # (data/ & cache/ are git-ignored: private)
 ├── results/                               # Notebook 1 figures (PNG + SVG)
 ├── results_sae/                           # Notebook 2 figures (PNG + SVG)
 ├── SKILL.md                               # agent-readable description of the CLI toolkit
