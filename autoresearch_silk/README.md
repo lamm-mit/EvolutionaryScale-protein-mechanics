@@ -24,7 +24,7 @@ Each run prints a **per-epoch `val R²`** progress line and a final `SCALAR  mea
 row to **`ledger.jsonl`**, and updates **`leaderboard.md`**. To peek at a long run, background it and
 tail: `python run_experiment.py --tag x > run.log 2>&1 &` then `tail -f run.log`.
 
-Then hand the folder to a coding agent with the brief in **`research.md`** and let it loop. Or iterate
+Then hand the folder to a coding agent with the brief in **`program.md`** and let it loop. Or iterate
 by hand: edit `model.py` → `python run_experiment.py` → check `leaderboard.md`.
 
 ## Kick off the agent (Claude Code / Codex)
@@ -37,7 +37,7 @@ You are an autonomous ML research agent; this folder is your entire workspace.
 GOAL: maximize the mean test R² for predicting four silk-fiber mechanical properties
 (toughness, E, strength, strain) directly from protein sequence, using cached ESMC embeddings.
 
-FIRST, read research.md (your full brief: rules, metric, calibration, idea menu), then journal.md
+FIRST, read program.md (your full brief: rules, metric, calibration, idea menu), then journal.md
 (what's been tried — don't repeat dead ends) and leaderboard.md (current best to beat).
 
 ONE-TIME:  conda activate esm ; git checkout -b autoresearch/<tag> ;
@@ -64,7 +64,7 @@ THEN loop, indefinitely (git-ratcheted; COMMIT BEFORE RUNNING):
 
 CONTEXT: this is genuinely hard — every baseline (mean-pool / Ridge / RF / silk-type-mean /
 attention / conv / LoRA) sits at R² ≈ 0 ("predict the mean"). Any clearly positive, repeatable
-mean test R² is a real result. Explore the optional directions in research.md (sequence-aware
+mean test R² is a real result. Explore the optional directions in program.md (sequence-aware
 pooling/conv/transformer, taxonomy fusion via the AUX hook, sequence-pattern features, log-targets /
 multi-task, LoRA fine-tuning in baselines/, or a stronger backbone via config.json) — or invent your
 own. Keep iterating; when you stop, report the best architecture and its mean test R².
@@ -78,7 +78,7 @@ git clone https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics.git ES
 git clone https://github.com/lamm-mit/EvolutionaryScale-protein-mechanics.git ESM-run    # agent runs/commits here
 ```
 (`data/` and `cache/` are git-ignored, so run `python setup.py` once per clone; the splits/metric are
-deterministic so results are comparable.) See `research.md` → "Git workflow".
+deterministic so results are comparable.) See `program.md` → "Git workflow".
 
 To run a *stronger backbone* mid-search, the agent edits `config.json` (`esmc_model`) and re-runs
 `python setup.py --model <hf_id> --device cuda`.
@@ -103,12 +103,12 @@ python export_experiments.py              # ledger.jsonl -> experiment_snapshots
 ```
 Writes `experiment_snapshots/experiment_NNN/` (each with `model.py`, `changes.patch`, `metadata.json`,
 `README.md`), a `best_experiment/` copy, `BEST_EXPERIMENT.md`, and `manifest.{tsv,json}`. Snapshots
-rely on the per-run git commits, so run the loop git-ratcheted (see *research.md*).
+rely on the per-run git commits, so run the loop git-ratcheted (see *program.md*).
 
 ## Files
 | file | role |
 |------|------|
-| `research.md` | **the agent's brief**: goal, loop protocol, rules, ideas, caveats |
+| `program.md` | **the agent's brief**: goal, loop protocol, rules, ideas, caveats |
 | `model.py` | **the editable asset** — architecture mapping residue embeddings → 4 targets |
 | `config.json` | tunable knobs (lr, epochs, pooling…) + **`esmc_model`** (the backbone) |
 | `setup.py` | one-time: cache data + ESMC embeddings (`--model`, `--device` configurable) |

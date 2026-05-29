@@ -351,7 +351,7 @@ python run_experiment.py --tag baseline  # train model.py → print mean test R�
 ```
 The **editable asset** is `model.py` (architecture mapping residue embeddings → 4 targets); the agent
 edits it (+ `config.json`), reruns the fixed `run_experiment.py`, and ratchets on `leaderboard.md`. Its
-brief is in **`autoresearch_silk/research.md`**, and a ready-to-paste **kickoff prompt** for Claude
+brief is in **`autoresearch_silk/program.md`**, and a ready-to-paste **kickoff prompt** for Claude
 Code / Codex is in [`autoresearch_silk/README.md`](autoresearch_silk/README.md). The backbone is a one-line `config.json` switch
 (`esmc_model`) + re-run `setup.py --model … --device cuda` — handy for a GPU box / DGX Spark.
 
@@ -373,7 +373,7 @@ EvolutionaryScale-protein-mechanics/      # (local working folder: ESM_samples/)
 │   ├── make_dataset.py  esm_train_head.py  esm_predict.py
 ├── data/                                  # built dataset CSV (structural_protein_families.csv)
 ├── autoresearch_silk/                     # self-contained Karpathy-style autoresearch loop
-│   ├── research.md  model.py  config.json  setup.py  dataio.py  run_experiment.py
+│   ├── program.md  model.py  config.json  setup.py  dataio.py  run_experiment.py
 │   ├── baselines/   leaderboard.md  journal.md          # (data/ & cache/ are git-ignored: private)
 ├── results/                               # Notebook 1 figures (PNG + SVG)
 ├── results_sae/                           # Notebook 2 figures (PNG + SVG)
