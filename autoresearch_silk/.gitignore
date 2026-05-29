@@ -11,3 +11,6 @@ __pycache__/
 analysis_results/
 .cache/
 experiment_snapshots/
+
+# Claude Code local settings (never tracked)
+.claude/
