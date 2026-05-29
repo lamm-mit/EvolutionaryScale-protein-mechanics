@@ -87,14 +87,19 @@ def main():
             opt.step()
         _, val_mean = r2_per_target(train.y[val_idx], predict(net, train, val_idx, scaler,
                                                               cfg.get("batch_size", 32), device))
-        if val_mean > best_val:
+        improved = val_mean > best_val
+        if improved:
             best_val, bad = val_mean, 0
             best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
         else:
             bad += 1
-            if bad >= cfg.get("patience", 20):
-                print(f"[run] early stop at epoch {epoch} (best val R²={best_val:.4f})")
-                break
+        # progress line (peekable): every epoch when improving, else every 5th epoch
+        if improved or epoch % 5 == 0:
+            print(f"[run] epoch {epoch:3d}  val R²={val_mean:+.4f}  best={best_val:+.4f}"
+                  f"  ({time.time()-t0:.0f}s)" + ("  *new best" if improved else ""), flush=True)
+        if bad >= cfg.get("patience", 20):
+            print(f"[run] early stop at epoch {epoch} (best val R²={best_val:.4f})", flush=True)
+            break
 
     if best_state is not None:
         net.load_state_dict(best_state)

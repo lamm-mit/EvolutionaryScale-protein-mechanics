@@ -20,6 +20,10 @@ conda activate esm                       # the ESM env (see ../SKILL.md); needs 
 python setup.py                          # ONE-TIME: download silkome + cache ESMC-300M embeddings
 python run_experiment.py --tag baseline  # train model.py, print mean test R², update leaderboard
 ```
+Each run prints a **per-epoch `val R²`** progress line and a final `SCALAR  mean test R²`, appends a
+row to **`ledger.jsonl`**, and updates **`leaderboard.md`**. To peek at a long run, background it and
+tail: `python run_experiment.py --tag x > run.log 2>&1 &` then `tail -f run.log`.
+
 Then hand the folder to a coding agent with the brief in **`research.md`** and let it loop. Or iterate
 by hand: edit `model.py` → `python run_experiment.py` → check `leaderboard.md`.
 
