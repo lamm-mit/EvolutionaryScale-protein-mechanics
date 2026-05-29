@@ -40,21 +40,27 @@ GOAL: maximize the mean test R² for predicting four silk-fiber mechanical prope
 FIRST, read research.md (your full brief: rules, metric, calibration, idea menu), then journal.md
 (what's been tried — don't repeat dead ends) and leaderboard.md (current best to beat).
 
-ONE-TIME, only if a cache/ folder is missing:  conda activate esm && python setup.py
-(needs `huggingface-cli login`; the silkome dataset is private).
+ONE-TIME:  conda activate esm ; git checkout -b autoresearch/<tag> ;
+  python setup.py --smoke-test   then   python setup.py   (only if cache/ is missing; needs
+  `huggingface-cli login` — silkome is private). Then run the baseline once.
 
-THEN loop, indefinitely:
+THEN loop, indefinitely (git-ratcheted; COMMIT BEFORE RUNNING):
   1. Form ONE hypothesis likely to raise mean test R².
-  2. Edit ONLY model.py (and optionally config.json); keep the contract in model.py's header.
-     Do NOT modify dataio.py, run_experiment.py, data/, or cache/.
-  3. Run:  python run_experiment.py --tag "<short idea>"   and read the printed
-     `SCALAR  mean test R²`.
-  4. RATCHET WITH GIT (best model.py = git HEAD): if it beat the top of leaderboard.md, note it in
-     journal.md and `git add -A && git commit -m "exp: <idea> | mean test R²=<value>"`. If it did NOT
-     improve, `git restore model.py config.json` (revert to the last good architecture), append the
-     negative result to journal.md, and `git commit -m "rejected: <idea>"` (journal/ledger only).
-  5. Repeat. One change per run. No test peeking beyond that scalar; prefer changes that also
-     lift the grouped-val R² (memorizing the small test set is not progress).
+  2. Edit ONLY model.py (and optionally config.json); keep model.py's contract. Do NOT touch
+     dataio.py, run_experiment.py, data/, or cache/.
+  3. Commit + tag the edit FIRST (so the logged commit points at this experiment's code):
+       git add model.py config.json && git commit -m "exp NNN: <idea>"
+       git tag autoresearch-exp/<tag>-NNN
+  4. Run:  python run_experiment.py --tag "<idea>"   → read the printed SCALAR mean test R²
+     (it logs this commit + status to ledger.jsonl / leaderboard.md).
+  5. RATCHET: if it beat the best so far → note why in journal.md, then
+       git add -A && git commit -m "keep exp NNN: <idea> R²=<v>".
+     If it did NOT improve → revert code to the last good architecture (tag keeps the rejected code):
+       git checkout <best-commit> -- model.py config.json   (best-commit from ledger.jsonl / git log)
+     then log the negative result in journal.md and
+       git add -A && git commit -m "reject exp NNN: <idea> R²=<v>".
+  6. Repeat. One change per run. No test peeking beyond that scalar; prefer changes that also lift
+     grouped-val R² (memorizing the small test set is not progress). Never stop unless asked.
 
 CONTEXT: this is genuinely hard — every baseline (mean-pool / Ridge / RF / silk-type-mean /
 attention / conv / LoRA) sits at R² ≈ 0 ("predict the mean"). Any clearly positive, repeatable

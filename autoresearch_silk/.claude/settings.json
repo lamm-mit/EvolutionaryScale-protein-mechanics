@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python setup.py*)",
+      "Bash(python run_experiment.py*)",
+      "Bash(python analyze_results.py*)",
+      "Bash(python export_experiments.py*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git tag*)",
+      "Bash(git checkout*)",
+      "Bash(git reset*)",
+      "Bash(git restore*)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git show*)",
+      "Bash(git rev-parse*)",
+      "Bash(tail*)",
+      "Bash(grep*)",
+      "Bash(cat*)",
+      "Bash(ls*)"
+    ]
+  }
+}

@@ -91,7 +91,23 @@ def main():
     ap.add_argument("--data-only", action="store_true",
                     help="regenerate data/*.parquet only (e.g. to add meta columns); skip embedding. "
                          "Row order is deterministic, so existing caches stay aligned.")
+    ap.add_argument("--smoke-test", action="store_true",
+                    help="quick end-to-end check: load silkome + embed 4 sequences + print shapes; "
+                         "no parquet/cache written. Run this before the full setup.")
     args = ap.parse_args()
+
+    if args.smoke_test:
+        import torch
+        from transformers import AutoModelForMaskedLM, AutoTokenizer
+        tr, te = load_silkome()
+        device = device_for(args.model, args.device)
+        tok = AutoTokenizer.from_pretrained(args.model)
+        m = AutoModelForMaskedLM.from_pretrained(args.model)
+        m = (m.float() if device != "cuda" and "6B" in args.model else m).to(device).eval()
+        mean, resid, lengths = embed_split(tr.head(4).reset_index(drop=True), tok, m, device, 2)
+        print(f"[smoke] OK | model={args.model} device={device} | train={len(tr)} test={len(te)} | "
+              f"mean{mean.shape} resid{resid.shape} lengths={lengths.tolist()}")
+        return
 
     os.makedirs(os.path.join(HERE, "data"), exist_ok=True)
     os.makedirs(os.path.join(HERE, "cache"), exist_ok=True)

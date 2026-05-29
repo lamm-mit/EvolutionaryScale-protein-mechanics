@@ -7,22 +7,40 @@ mechanical properties of silk fibers **directly from the protein sequence**:
 
 This follows Karpathy's *autoresearch* loop: **propose → run → measure → ratchet**.
 
+## Set up a run
+Work in a **RUN clone** (see "Git workflow") on a per-session branch:
+```bash
+git checkout -b autoresearch/<tag>            # e.g. autoresearch/may30-silk
+python setup.py --smoke-test                  # quick pipeline check (no full cache write)
+python setup.py                               # one-time: cache embeddings (if cache/ missing)
+git commit -am "baseline" 2>/dev/null; python run_experiment.py --tag baseline   # establish the bar
+```
+
 ## The loop (repeat indefinitely) — git-ratcheted
-The best `model.py` is always **git HEAD**. Each accepted improvement is one commit; rejected ones are
-discarded with `git restore`. (Work in a dedicated **RUN clone** — see "Git workflow" below.)
-1. **Read** `model.py` (the architecture) and `leaderboard.md` / `journal.md` (what's been tried).
-2. **Form a hypothesis** for a change likely to raise mean test R².
-3. **Edit `model.py`** (and/or add keys to `config.json`). Keep the contract in `model.py`'s header.
-4. **Run** `python run_experiment.py --tag "<short idea>"`. It prints `SCALAR  mean test R² = …`
-   and appends to `ledger.jsonl` / `leaderboard.md`.
-5. **Ratchet with git:**
-   - **Improved** over the best in `leaderboard.md` → keep it: add a note to `journal.md`, then
-     `git add -A && git commit -m "exp: <idea> | mean test R²=<value>"`.
-   - **Did not improve** → discard the code change but keep the lesson:
-     `git restore model.py config.json` (revert to the last good architecture), append the
-     **negative** result to `journal.md`, and `git commit -m "rejected: <idea> (R²=<value>)"` (journal +
-     ledger only). Negative results are valuable — don't repeat them.
-6. Go to 1.
+**Commit the edit BEFORE running** so the commit hash run_experiment.py records points at *this*
+experiment's code (this is what lets `export_experiments.py` / `analyze_results.py` recover it).
+Every experiment is committed and **tagged**, so even rejected code stays recoverable.
+1. **Read** `model.py` and `leaderboard.md` / `journal.md` (what's been tried — don't repeat dead ends).
+2. **Form one hypothesis** likely to raise mean test R².
+3. **Edit `model.py`** (and/or `config.json`). Keep the contract in `model.py`'s header.
+4. **Commit, then tag:**
+   ```bash
+   git add model.py config.json && git commit -m "exp NNN: <idea>"
+   git tag autoresearch-exp/<tag>-NNN          # preserves this snapshot even if reverted later
+   ```
+5. **Run:** `python run_experiment.py --tag "<idea>"` → prints `SCALAR mean test R² = …`, appends to
+   `ledger.jsonl` (with this commit) + `leaderboard.md`, and stamps `status: keep/discard`.
+6. **Ratchet:**
+   - **Improved** over the best so far → keep: note why in `journal.md`, then
+     `git add -A && git commit -m "keep exp NNN: <idea> R²=<value>"`.
+   - **Did not improve** → revert the *code* to the last good architecture but keep the trace + lesson:
+     ```bash
+     git checkout <best-commit> -- model.py config.json   # best-commit from ledger.jsonl / git log
+     ```
+     append the **negative** result to `journal.md`, then
+     `git add -A && git commit -m "reject exp NNN: <idea> R²=<value>"`. (The tag from step 4 keeps the
+     rejected code recoverable; `ledger.jsonl` keeps its metrics so it isn't retried.)
+7. Go to 1. One change per run. **Never stop** unless asked.
 
 ## Rules
 - **Only edit `model.py` and `config.json`.** Do **not** modify `dataio.py`, `run_experiment.py`, the
