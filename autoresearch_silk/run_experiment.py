@@ -51,21 +51,37 @@ def main():
 
     net = model_module.build_model(train.dim, len(TARGETS), cfg).to(device)
     n_params = sum(p.numel() for p in net.parameters())
+
+    # Optional auxiliary supervision (fusion / multi-task): if model.py declares AUX_COLS
+    # (e.g. ["family","genus","category1"]) and implements build_aux_heads/auxiliary_loss, we
+    # supervise those taxonomy classifiers jointly. Eval/metric are unchanged (forward->4 targets).
+    aux_cols = getattr(net, "AUX_COLS", None)
+    aux_arrays, aux_w = {}, cfg.get("aux_weight", 0.3)
+    if aux_cols:
+        counts = {}
+        for c in aux_cols:
+            arr, classes = train.label_array(c); aux_arrays[c] = arr; counts[c] = len(classes) + 1
+        net.build_aux_heads(counts)
+        net.to(device)
+        print(f"[run] auxiliary heads {counts} (aux_weight={aux_w})")
+
     opt = torch.optim.Adam(net.parameters(), lr=cfg.get("lr", 5e-4),
                            weight_decay=cfg.get("weight_decay", 1e-4))
     lossfn = torch.nn.MSELoss()
-    y_train_std = scaler.transform(train.y)
 
     best_val, best_state, bad = -1e9, None, 0
     t0 = time.time()
     for epoch in range(cfg.get("epochs", 200)):
         net.train()
-        for X, mask, ysub in make_batches(train, tr_idx, cfg.get("batch_size", 32),
-                                          shuffle=True, seed=seed + epoch, device=device):
-            # standardized targets for a balanced multi-task MSE
+        for batch in make_batches(train, tr_idx, cfg.get("batch_size", 32), shuffle=True,
+                                  seed=seed + epoch, device=device, return_idx=bool(aux_cols)):
+            (X, mask, ysub, sub) = batch if aux_cols else (*batch, None)
             yi = torch.tensor(scaler.transform(ysub.cpu().numpy()), device=device)
             opt.zero_grad()
             loss = lossfn(net(X, mask), yi)
+            if aux_cols:
+                aux_lab = {c: torch.tensor(aux_arrays[c][sub], device=device) for c in aux_cols}
+                loss = loss + aux_w * net.auxiliary_loss(X, mask, aux_lab)
             loss.backward()
             if cfg.get("grad_clip"): torch.nn.utils.clip_grad_norm_(net.parameters(), cfg["grad_clip"])
             opt.step()

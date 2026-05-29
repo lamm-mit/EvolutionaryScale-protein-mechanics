@@ -23,7 +23,9 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TARGETS = ["toughness", "E", "strength", "strain"]
-KEEP = ["idv", "sequence", "category1"] + TARGETS
+# taxonomy/meta columns kept for fusion / multi-task / auxiliary-classifier experiments
+META = ["family", "genus", "species", "category1", "category2", "sex", "ncbi"]
+KEEP = ["idv", "sequence"] + META + TARGETS
 
 
 def slug(model):
@@ -86,6 +88,9 @@ def main():
     ap.add_argument("--model", default=cfg.get("esmc_model", "biohub/ESMC-300M"))
     ap.add_argument("--device", default="auto")
     ap.add_argument("--batch-size", type=int, default=8)
+    ap.add_argument("--data-only", action="store_true",
+                    help="regenerate data/*.parquet only (e.g. to add meta columns); skip embedding. "
+                         "Row order is deterministic, so existing caches stay aligned.")
     args = ap.parse_args()
 
     os.makedirs(os.path.join(HERE, "data"), exist_ok=True)
@@ -95,7 +100,11 @@ def main():
     tr, te = load_silkome()
     tr.to_parquet(os.path.join(HERE, "data", "train.parquet"))
     te.to_parquet(os.path.join(HERE, "data", "test.parquet"))
-    print(f"[setup] train={len(tr)} test={len(te)} rows saved to data/")
+    print(f"[setup] train={len(tr)} test={len(te)} rows saved to data/ "
+          f"(cols: {', '.join(c for c in tr.columns if c != 'sequence')})")
+    if args.data_only:
+        print("[setup] --data-only: parquets regenerated; embeddings left untouched.")
+        return
 
     import torch
     from transformers import AutoModelForMaskedLM, AutoTokenizer

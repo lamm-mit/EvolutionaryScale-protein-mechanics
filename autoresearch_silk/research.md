@@ -50,6 +50,38 @@ small Transformer / set-transformer · per-target heads vs shared trunk · log-t
 stronger backbone (600M/6B) · SAE features · LoRA fine-tuning (`baselines/`). Drop-in alternatives to
 copy into `model.py` are in `baselines/`.
 
+### Suggested research directions (with built-in support)
+
+**1. Fusion / multi-task with taxonomy (predict species/genus/family/silk-type, then fuse).**
+The data carries taxonomy columns (`family, genus, species, category1, category2, sex`). Train
+**auxiliary classifiers from the sequence** jointly with the property head so they shape a shared
+representation, then fuse. This is natively supported — a model may declare:
+```python
+AUX_COLS = ["family", "genus", "category1"]          # taxonomy targets predicted from sequence
+def build_aux_heads(self, class_counts): ...          # run_experiment calls this with {col: n_classes}
+def auxiliary_loss(self, x, mask, aux_labels): ...    # added to the loss during TRAINING only
+```
+See `baselines/fusion_taxonomy.py` (copy it over `model.py`); tune `aux_weight` in `config.json`.
+Variants: two-stage (pretrain the taxonomy classifier, then fuse its frozen features), or use the
+*predicted* taxonomy posterior as an extra input to the property head.
+*Honest caveat:* a ground-truth `category1`-mean predictor scores R² ≈ 0 on this split, so taxonomy
+is unlikely to be a silver bullet — its value is as a representation-shaping signal / regularizer.
+It must be **predicted from sequence** (as here), never fed in as ground truth.
+
+**2. Extract explicit sequence patterns (statistics or a GPT) to hone in on key subsequences.**
+`dataio.sequence_motif_features(sequences)` gives per-sequence amino-acid composition + canonical
+silk-motif counts (poly-A crystallites, `GPGGY`/`GPGQQ`, `GAGAGS`, `GGX`, poly-A run length) + length —
+a ready building block. Sequences are in `data/*.parquet` (`SilkData.df["sequence"]`). Ideas: fuse
+these stats with the embedding pool; or build features from a **protein GPT** (e.g. per-token
+surprisal / hidden states from a generative model, à la SilkomeGPT) to flag the residues that carry
+mechanical signal; or supervise **motif-presence as auxiliary targets** via the hook above. (Note:
+Conv1D/attention over the per-residue embeddings is the in-harness way to learn motif detectors.)
+
+**3. Other directions:** kNN-in-embedding-space baseline · per-family residual modeling (predict the
+family mean + a sequence-conditioned residual) · ensembling across seeds/architectures · log-targets +
+uncertainty-weighted 4-task loss · contrastive pretraining on sequence→property · and the big levers:
+**LoRA fine-tuning** and a **stronger backbone (600M/6B)**.
+
 ## Reference measurements (calibration — read before optimizing)
 Measured on this exact split with ESMC-300M **mean-pooled** features:
 

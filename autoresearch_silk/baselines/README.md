@@ -12,6 +12,9 @@ cp baselines/conv1d.py        model.py && python run_experiment.py --tag "conv1d
 - **`attention_pool.py`** — learned attention pooling over residues (vs naive mean).
 - **`conv1d.py`** — multi-scale Conv1D motif detectors over the residue embeddings (silk is repetitive),
   then masked mean+max pooling.
+- **`fusion_taxonomy.py`** — shared trunk + property head + **auxiliary taxonomy classifiers**
+  (family/genus/silk-type) trained jointly (multi-task fusion). Demonstrates the optional
+  `AUX_COLS` / `build_aux_heads` / `auxiliary_loss` hook; tune `aux_weight` in `config.json`.
 
 ### Harder path — LoRA fine-tuning of the backbone
 `lora_finetune.py` is a **separate, self-contained** experiment that LoRA-fine-tunes ESMC end-to-end
