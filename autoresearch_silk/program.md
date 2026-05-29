@@ -17,6 +17,9 @@ python setup.py --smoke-test                  # quick pipeline check (no full ca
 python setup.py                               # one-time: cache embeddings (if cache/ missing)
 git commit -am "baseline" 2>/dev/null; python run_experiment.py --tag baseline   # establish the bar
 ```
+> The committed `ledger.jsonl`/`leaderboard.md` are intentionally an **empty placeholder** for a clean
+> start — after you run the baseline, the uncommitted changes you see in those files are simply your
+> baseline run's own output. Commit them and proceed; there is no prior trace data to preserve.
 
 ## The loop (repeat indefinitely) — git-ratcheted
 **Commit the edit BEFORE running** so the commit hash run_experiment.py records points at *this*
