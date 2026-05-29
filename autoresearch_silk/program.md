@@ -10,6 +10,8 @@ This follows Karpathy's *autoresearch* loop: **propose → run → measure → r
 ## Set up a run
 Work in a **RUN clone** (see "Git workflow") on a per-session branch:
 ```bash
+conda activate esm                            # the ESM env; ensure `huggingface-cli login` is done
+                                              # (silkome is private — needed for setup.py to download)
 git checkout -b autoresearch/<tag>            # e.g. autoresearch/may30-silk
 python setup.py --smoke-test                  # quick pipeline check (no full cache write)
 python setup.py                               # one-time: cache embeddings (if cache/ missing)
@@ -51,6 +53,9 @@ Every experiment is committed and **tagged**, so even rejected code stays recove
   harness is **head-only** (the backbone is frozen/precomputed); fine-tuning the backbone end-to-end
   (LoRA) is a separate, slower path you'd script yourself outside `run_experiment.py`.
 - One change per run when possible, so you know what moved the metric.
+- Runs may be **time/size-limited** via env vars the launcher exports: `AR_TIME_BUDGET` (wall-clock
+  seconds/run, checked between epochs), `AR_EPOCHS` (epoch cap), `AR_MAX_TRAIN` (first-N rows). A run
+  that ends with `stop: time-budget` is **expected, not a crash** — it still scores the best checkpoint.
 
 ## Git workflow (two clones: RUN vs EDIT)
 Keep reusable infrastructure changes separate from optimization experiments by using two local clones:

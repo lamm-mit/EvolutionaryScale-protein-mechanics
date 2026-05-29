@@ -82,49 +82,23 @@ otherwise). Then harvest results — see **Results & figures** below (`analyze_r
 
 ## Kick off the agent (Claude Code / Codex)
 
-Open a coding-agent session **with this folder as the working directory** and paste this prompt:
+Open a coding-agent session **with this folder as the working directory** and paste this prompt. It is
+deliberately short — **`program.md` is the full brief** (the git-ratcheted loop, commit/tag steps,
+rules, calibration, and idea menu all live there, so they stay in one place):
 
 ```text
-You are an autonomous ML research agent; this folder is your entire workspace.
+You are an autonomous ML research agent and this folder is your entire workspace.
 
 GOAL: maximize the mean test R² for predicting four silk-fiber mechanical properties
-(toughness, E, strength, strain) directly from protein sequence, using cached ESMC embeddings.
+(toughness, E, strength, strain) directly from protein sequence.
 
-FIRST, read program.md (your full brief: rules, metric, calibration, idea menu), then journal.md
-(what's been tried — don't repeat dead ends) and leaderboard.md (current best to beat).
+Read program.md — it is your complete brief: the metric, the one-time setup, the exact
+git-ratcheted loop (propose → commit+tag → run_experiment.py → keep or revert), the rules,
+and the idea menu. Then skim journal.md (what's been tried) and leaderboard.md (best to beat).
 
-ONE-TIME:  conda activate esm ; git checkout -b autoresearch/<tag> ;
-  python setup.py --smoke-test   then   python setup.py   (only if cache/ is missing; needs
-  `huggingface-cli login` — silkome is private). Then run the baseline once.
-
-THEN loop, indefinitely (git-ratcheted; COMMIT BEFORE RUNNING):
-  1. Form ONE hypothesis likely to raise mean test R².
-  2. Edit ONLY model.py (and optionally config.json); keep model.py's contract. Do NOT touch
-     dataio.py, run_experiment.py, data/, or cache/.
-  3. Commit + tag the edit FIRST (so the logged commit points at this experiment's code):
-       git add model.py config.json && git commit -m "exp NNN: <idea>"
-       git tag autoresearch-exp/<tag>-NNN
-  4. Run:  python run_experiment.py --tag "<idea>"   → read the printed SCALAR mean test R²
-     (it logs this commit + status to ledger.jsonl / leaderboard.md).
-  5. RATCHET: if it beat the best so far → note why in journal.md, then
-       git add -A && git commit -m "keep exp NNN: <idea> R²=<v>".
-     If it did NOT improve → revert code to the last good architecture (tag keeps the rejected code):
-       git checkout <best-commit> -- model.py config.json   (best-commit from ledger.jsonl / git log)
-     then log the negative result in journal.md and
-       git add -A && git commit -m "reject exp NNN: <idea> R²=<v>".
-  6. Repeat. One change per run. No test peeking beyond that scalar; prefer changes that also lift
-     grouped-val R² (memorizing the small test set is not progress). Never stop unless asked.
-
-NOTE: runs may be time-limited via the AR_TIME_BUDGET env var (seconds/run, checked between epochs);
-if a run stops with `stop: time-budget` that is expected, not a crash — it still scores the best
-checkpoint. AR_EPOCHS / AR_MAX_TRAIN similarly cap epochs / training rows. Keep each run fast.
-
-CONTEXT: this is genuinely hard — simple baselines (mean-pool / Ridge / RF / silk-type-mean) tend to
-sit near R² ≈ 0 ("predict the mean"); run the baseline first to establish the actual bar. Any clearly
-positive, repeatable mean test R² is a real result. Explore the optional directions in program.md (sequence-aware
-pooling/conv/transformer, taxonomy fusion via the AUX hook, sequence-pattern features, log-targets /
-multi-task, LoRA fine-tuning as a separate end-to-end script, or a stronger backbone via config.json) — or invent your
-own. Keep iterating; when you stop, report the best architecture and its mean test R².
+Do the one-time setup, run the baseline to set the bar, then run the program.md loop
+indefinitely — one change per run, never stop unless asked. When you stop, report the best
+architecture and its mean test R².
 ```
 
 **Two clones (RUN vs EDIT).** Keep optimization experiments separate from reusable-code changes by
