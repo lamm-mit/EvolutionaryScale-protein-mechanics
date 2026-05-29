@@ -129,23 +129,17 @@ family mean + a sequence-conditioned residual) · ensembling across seeds/archit
 uncertainty-weighted 4-task loss · contrastive pretraining on sequence→property · and the big levers:
 **LoRA fine-tuning** and a **stronger backbone (600M/6B)**.
 
-## Reference measurements (calibration — read before optimizing)
-Default dataset **silkome-masp** (ESMC-300M **mean-pooled** features, provided train/test split):
+## Establish the bar first (calibration)
+**Run the baseline before optimizing** — `python run_experiment.py --tag baseline` — to measure the
+current floor on the active dataset (default **silkome-masp**), and log it as the first `journal.md`
+entry. The baseline is a masked **mean-pool → MLP** on ESMC-300M embeddings; for context, simple
+classical predictors on the same mean-pooled features (Ridge, RandomForest, a `category1`/silk-type
+mean predictor) are all worth trying once to see where the floor sits.
 
-| approach | mean test R² |
-|----------|----:|
-| predict the global mean | ~0.00 (by definition) |
-| **mean-pool → MLP (baseline)** | **~0.01** |
-| Ridge (mean-pool features) | −0.41 … −0.02 (only ≈0 at very high regularization) |
-| RandomForest (mean-pool) | −0.07 |
-| `category1` (silk-type) mean predictor | −0.01 |
-
-(silkome-full is the same story: baseline ≈ 0, Ridge/RF/category-mean ≤ 0, grouped-CV ≈ −0.3.)
-
-**So the bar is brutal: nothing beats predicting the mean yet** — the single-sequence→fiber-mechanics
-signal is extremely weak. **Any clearly positive mean test R² is a genuine result.** Don't be fooled
-by tiny positive numbers (~0.01) — they're just "predict the mean" noise; aim for a robust, repeatable
-gain that also shows up in grouped-val R².
+**Expect the bar to be brutal:** because the sequence→fiber-mechanics signal here is weak and indirect
+(see "the catch"), naive baselines tend to land near R² ≈ 0 ("predict the mean"). **Any clearly
+positive, repeatable mean test R² is a genuine result.** Don't be fooled by tiny positive numbers
+(~0.01) — they're "predict the mean" noise; aim for a robust gain that also shows up in grouped-val R².
 
 **Most promising levers** (in rough order of expected payoff):
 1. **LoRA fine-tuning** of ESMC end-to-end (`baselines/lora_finetune.py`) — lets the backbone

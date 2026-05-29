@@ -3,8 +3,9 @@
 
 Downloads a silkome dataset (private — needs `huggingface-cli login`), keeps sequence + the 4
 mechanical targets + taxonomy, and CACHES ESMC embeddings (mean-pooled + per-residue, fp16) so
-experiments are fast and fully local. The dataset's own splits are IGNORED: all splits are pooled,
-deduped by sequence, and re-split into a deterministic **leakage-safe grouped** train/test (test_frac).
+experiments are fast and fully local. By default, datasets with provided train/test splits use those
+splits; split-less datasets are pooled, deduped by sequence, and re-split into a deterministic
+**leakage-safe grouped** train/test (test_frac).
 
 Dataset and backbone are configurable; caches are keyed by (dataset, model) so several coexist:
   python setup.py                                    # config.json defaults (silkome-masp + ESMC-300M)

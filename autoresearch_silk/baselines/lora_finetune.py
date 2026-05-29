@@ -17,6 +17,10 @@ import hashlib, pandas as pd
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def dataset_slug(dataset):
+    return dataset.split("/")[-1]
+
+
 def groups_of(y):
     keys = [hashlib.md5(np.round(r, 5).tobytes()).hexdigest() for r in y]
     u = {k: i for i, k in enumerate(dict.fromkeys(keys))}
@@ -35,11 +39,13 @@ def main():
     ap.add_argument("--max-length", type=int, default=1024)
     ap.add_argument("--device", default="auto")
     args = ap.parse_args()
+    cfg_json = json.load(open(os.path.join(HERE, "config.json")))
+    dsl = dataset_slug(cfg_json.get("dataset", "lamm-mit/silkome-masp"))
 
     dev = ("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available()
            else "cpu") if args.device == "auto" else args.device
-    tr = pd.read_parquet(os.path.join(HERE, "data", "train.parquet"))
-    te = pd.read_parquet(os.path.join(HERE, "data", "test.parquet"))
+    tr = pd.read_parquet(os.path.join(HERE, "data", f"{dsl}_train.parquet"))
+    te = pd.read_parquet(os.path.join(HERE, "data", f"{dsl}_test.parquet"))
     ytr, yte = tr[TARGETS].to_numpy("float32"), te[TARGETS].to_numpy("float32")
     scaler = TargetScaler(ytr)
     tri, vli = grouped_train_val_split(groups_of(ytr), 0.15, 0)

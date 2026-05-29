@@ -337,10 +337,11 @@ keep it if it improved, else roll back* — to learn to predict silk fiber mecha
 **Why a search?** On the default [`lamm-mit/silkome-masp`](https://huggingface.co/datasets/lamm-mit/silkome-masp)
 (~1028 MaSp sequences, all four targets; `silkome-full` is also selectable), this is genuinely hard:
 sequences map to only a few hundred distinct fiber measurements, so the single-sequence→mechanics
-signal is weak. We measured the floor honestly — **mean-pool ESMC-300M baselines and classical models
-(Ridge/RandomForest/silk-type mean) all sit at R² ≈ 0 or below**. So *any clearly positive, repeatable
-R² is a real result*, and the loop is pointed at the promising levers (**LoRA fine-tuning**, **bigger
-backbone 600M/6B**, **per-residue sequence models**, target reframing). The dataset is a `config.json`
+signal is weak. Simple baselines (mean-pool ESMC-300M, plus classical Ridge/RandomForest/silk-type
+mean) tend to sit near **R² ≈ 0** ("predict the mean") — the agent establishes the actual bar by
+running the baseline first. So *any clearly positive, repeatable R² is a real result*, and the loop is
+pointed at the promising levers (**LoRA fine-tuning**, **bigger backbone 600M/6B**, **per-residue
+sequence models**, target reframing). The dataset is a `config.json`
 switch; the harness can use the dataset's own train/test split or make its own leakage-safe grouped one.
 
 **How it works**

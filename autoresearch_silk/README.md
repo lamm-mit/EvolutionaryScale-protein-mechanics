@@ -62,9 +62,9 @@ THEN loop, indefinitely (git-ratcheted; COMMIT BEFORE RUNNING):
   6. Repeat. One change per run. No test peeking beyond that scalar; prefer changes that also lift
      grouped-val R² (memorizing the small test set is not progress). Never stop unless asked.
 
-CONTEXT: this is genuinely hard — every baseline (mean-pool / Ridge / RF / silk-type-mean /
-attention / conv / LoRA) sits at R² ≈ 0 ("predict the mean"). Any clearly positive, repeatable
-mean test R² is a real result. Explore the optional directions in program.md (sequence-aware
+CONTEXT: this is genuinely hard — simple baselines (mean-pool / Ridge / RF / silk-type-mean) tend to
+sit near R² ≈ 0 ("predict the mean"); run the baseline first to establish the actual bar. Any clearly
+positive, repeatable mean test R² is a real result. Explore the optional directions in program.md (sequence-aware
 pooling/conv/transformer, taxonomy fusion via the AUX hook, sequence-pattern features, log-targets /
 multi-task, LoRA fine-tuning in baselines/, or a stronger backbone via config.json) — or invent your
 own. Keep iterating; when you stop, report the best architecture and its mean test R².

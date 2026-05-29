@@ -38,8 +38,8 @@ IDEAS TO EXPLORE (go beyond these — the agent chooses what, if anything, to tr
   * harder mode: LoRA-fine-tune ESMC end-to-end (see baselines/lora_finetune.py).
 
 REMEMBER THE CHALLENGE: many distinct sequences share ONE fiber measurement, so the signal is
-weak/indirect (mean-pool/Ridge/category-mean all sit at R²≈0 — see program.md). Any clearly
-positive, repeatable mean test R² is a real result.
+weak/indirect (simple baselines tend to sit near R²≈0 — establish the bar yourself first; see
+program.md). Any clearly positive, repeatable mean test R² is a real result.
 ====================================================================="""
 import torch
 import torch.nn as nn
