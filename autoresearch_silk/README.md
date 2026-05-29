@@ -114,6 +114,25 @@ deterministic so results are comparable.) See `program.md` → "Git workflow".
 To run a *stronger backbone* mid-search, the agent edits `config.json` (`esmc_model`) and re-runs
 `python setup.py --model <hf_id> --device cuda`.
 
+## Reset / clean up after a run
+A Codex session works on its own **`autoresearch/<tag>` branch** and commits each experiment there;
+`main` is left untouched. To throw the whole run away and return to a pristine `main`:
+```bash
+git fetch origin
+git switch main
+git reset --hard origin/main                  # main back to the exact remote state (drops local main commits)
+git branch -D autoresearch/<tag>              # delete the experiment branch AND all its commits
+git tag -d $(git tag -l 'autoresearch-exp/*') 2>/dev/null   # optional: drop the per-experiment tags
+```
+The first three lines reset `main`, but the experiment commits live on the `autoresearch/<tag>`
+branch — so the `git branch -D` is what actually deletes them (use `git branch --list 'autoresearch/*'`
+to find the tag). If you ever pushed that branch, also `git push origin --delete autoresearch/<tag>`.
+
+`data/`, `cache/`, `analysis_results/`, `experiment_snapshots/`, and `run.log` are git-ignored, so
+`reset --hard` leaves them untouched — keep `cache/` (it's the expensive ESMC embeddings) and delete
+the rest by hand if you want. **Simplest with the two-clone setup: just `rm -rf` the RUN clone and
+re-clone** (copy `cache/` over first to skip re-downloading/embedding).
+
 ## Results & figures
 
 After some experiments have been logged, render publication-ready plots (à la
