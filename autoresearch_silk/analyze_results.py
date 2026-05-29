@@ -46,6 +46,7 @@ def load_ledger(path):
         rows.append({
             "experiment": len(rows),
             "time": d.get("time", ""), "tag": d.get("tag", ""), "commit": d.get("commit", ""),
+            "status": d.get("status", ""),
             "model": d.get("model", "?"), "backbone": str(d.get("backbone", "")).split("/")[-1],
             "params": d.get("params", np.nan),
             "val_r2_mean": d.get("val_r2_mean", np.nan), "test_r2_mean": d.get("test_r2_mean", np.nan),
@@ -116,9 +117,18 @@ def main():
     args = ap.parse_args()
     if not os.path.exists(args.ledger) or os.path.getsize(args.ledger) == 0:
         raise SystemExit(f"No experiments in {args.ledger}. Run run_experiment.py first.")
-    df = load_ledger(args.ledger)
+    df_all = load_ledger(args.ledger)
     out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out / "results_clean.csv", index=False)
+    df_all.to_csv(out / "results_clean.csv", index=False)   # full trace, incl crashes
+
+    # best/progress/plots use only SCORED rows (drop crashes + any unscored/NaN test_r2_mean)
+    scored = (df_all["status"].astype(str) != "crash") & df_all["test_r2_mean"].apply(
+        lambda v: isinstance(v, (int, float)) and np.isfinite(v))
+    df = df_all[scored].reset_index(drop=True)
+    n_crash = int((df_all["status"].astype(str) == "crash").sum())
+    if df.empty:
+        raise SystemExit(f"No scored experiments yet ({len(df_all)} rows, {n_crash} crashes). "
+                         "Run a successful run_experiment.py first.")
 
     bi = plot_progress(df, out)
     plot_per_target(df, out, bi)
@@ -127,14 +137,14 @@ def main():
 
     best = df.iloc[bi]
     json.dump({
-        "n_experiments": int(len(df)),
+        "n_experiments": int(len(df_all)), "n_scored": int(len(df)), "n_crashes": n_crash,
         "best_test_r2_mean": float(best["test_r2_mean"]),
         "best_model": best["model"], "best_tag": best["tag"], "best_commit": best["commit"],
         "best_per_target": {t: float(best[f"r2_{t}"]) for t in TARGETS},
         "first_baseline_r2": float(df.iloc[0]["test_r2_mean"]),
     }, open(out / "summary.json", "w"), indent=2)
 
-    print(f"{len(df)} experiments -> {out}/")
+    print(f"{len(df)} scored experiments ({len(df_all)} total, {n_crash} crashes) -> {out}/")
     print(f"best: {best['test_r2_mean']:.4f}  ({best['model'][:50]}, tag='{best['tag']}', "
           f"commit {best['commit'] or 'n/a'})")
     print("wrote progress / per_target / architecture_summary / parameter_vs_performance (png/svg/pdf)"

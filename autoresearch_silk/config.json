@@ -5,6 +5,7 @@
   "seed": 0,
   "val_frac": 0.15,
   "group_split": true,
+  "_comment_group_split": "true = leakage-safe validation split grouped by fiber/property tuple; false = plain random val split",
 
   "batch_size": 32,
   "epochs": 200,

@@ -88,11 +88,19 @@ def main():
     try:
         train, test = SilkData("train"), SilkData("test")
         scaler = TargetScaler(train.y)
-        tr_idx, val_idx = grouped_train_val_split(train.groups, cfg.get("val_frac", 0.15), seed)
+        val_frac = cfg.get("val_frac", 0.15)
+        if cfg.get("group_split", True):                 # default: leakage-safe (group by fiber tuple)
+            tr_idx, val_idx = grouped_train_val_split(train.groups, val_frac, seed)
+            split_kind = "grouped"
+        else:                                            # plain random val split (group_split=false)
+            perm = np.random.default_rng(seed).permutation(len(train))
+            n_val = max(1, int(round(val_frac * len(train))))
+            val_idx, tr_idx = perm[:n_val], perm[n_val:]
+            split_kind = "random"
         if max_train:
             tr_idx = tr_idx[:max_train]
         print(f"[run] backbone={cfg['esmc_model']} dim={train.dim} | train={len(tr_idx)} "
-              f"val={len(val_idx)} test={len(test)} | device={device} | epochs={epochs}"
+              f"val={len(val_idx)} ({split_kind}) test={len(test)} | device={device} | epochs={epochs}"
               + (f" | budget={time_budget:.0f}s" if time_budget else ""), flush=True)
 
         net = model_module.build_model(train.dim, len(TARGETS), cfg).to(device)
@@ -156,6 +164,7 @@ def main():
         entry = {**base, "status": status, "model": desc, "params": int(n_params),
                  "val_r2_mean": round(float(best_val), 4), "test_r2_mean": round(float(test_mean), 4),
                  "test_r2": {k: round(v, 4) for k, v in test_per.items()}, "stop": stop,
+                 "split": split_kind,
                  "cfg": {**{k: cfg[k] for k in ("lr", "batch_size", "weight_decay") if k in cfg},
                          "epochs": epochs}, "seconds": round(time.time() - t0, 1)}
         _append(entry); update_leaderboard()
