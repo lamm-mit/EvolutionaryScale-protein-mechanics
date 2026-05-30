@@ -1,0 +1,16 @@
+# The silkome dataset is PRIVATE — never commit raw data or embeddings to a public repo.
+data/
+cache/
+
+__pycache__/
+*.py[cod]
+*.log
+.DS_Store
+
+# generated analysis artifacts
+analysis_results/
+.cache/
+experiment_snapshots/
+
+# Claude Code local settings (never tracked)
+.claude/
