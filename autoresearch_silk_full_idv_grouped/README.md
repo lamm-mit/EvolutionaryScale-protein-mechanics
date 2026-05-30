@@ -36,7 +36,7 @@ fiber.
 ## Quick Start
 
 ```bash
-cd /Users/mbuehler/ESM_samples/autoresearch_silk_full_idv_grouped
+cd autoresearch_silk_full_idv_grouped
 conda activate esm
 python setup.py --smoke-test
 python setup.py
@@ -44,6 +44,58 @@ python run_experiment.py --tag baseline
 ```
 
 Then start a coding-agent loop using the instructions in `program.md`.
+
+## Kick Off Codex
+
+Open a Codex session in this folder:
+
+```bash
+cd  autoresearch_silk_full_idv_grouped
+codex --yolo
+```
+
+Paste this prompt:
+
+```text
+You are an autonomous ML research agent; this folder is your entire workspace.
+
+GOAL: maximize the mean test R2 for predicting four dragline silk fiber properties
+[toughness, E, strength, strain] from a set of spidroin sequences associated with one Silkome idv.
+
+FIRST, read program.md, then journal.md and leaderboard.md. Understand the fixed benchmark before
+editing anything.
+
+DATA/INPUT: setup.py embeds each protein sequence independently with ESMC. The model receives:
+  seq_embeddings: (B, Smax, d)
+  seq_mask:       (B, Smax)
+  category_ids:   (B, Smax)
+  seq_lengths:    (B, Smax)
+Do not feed sequence_concat_x25, sequence, FASTA text, or any concatenated multi-protein string into
+ESMC. The correct formulation is set-of-sequences -> fiber properties.
+
+ONE-TIME: if cache/ lacks the grouped ESMC arrays, run:
+  python setup.py --smoke-test
+  python setup.py
+Then establish the starting score:
+  python run_experiment.py --tag baseline
+
+THEN loop:
+  1. Form ONE hypothesis likely to improve set aggregation or prediction.
+  2. Edit only model.py and optionally config.json. Keep the forward contract:
+       forward(seq_embeddings, seq_mask, category_ids, seq_lengths) -> (B, 4)
+  3. Commit before running:
+       git add model.py config.json && git commit -m "exp NNN: <idea>"
+       git tag autoresearch-exp/grouped-NNN
+  4. Run:
+       python run_experiment.py --tag "<idea>"
+  5. If mean test R2 improves, record why in journal.md and keep it.
+     If it does not improve, revert model.py/config.json to the last good architecture, record the
+     negative result in journal.md, and continue.
+
+Explore category-aware pooling, attention pooling, DeepSets, set transformers, per-category experts,
+length-aware pooling, mean+max+std pooling, per-target heads, or stronger ESMC backbones. Keep the
+dataset, splits, target definition, and metric fixed unless explicitly asked.
+```
 
 ## Input Format
 
